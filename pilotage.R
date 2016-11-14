@@ -98,8 +98,8 @@ data_generaliste$nationalite_2 <- NULL
 data_generaliste$pays_expat_2 <- NULL
 data_generaliste$pays_2 <- NULL
 
-
 ############################ Data Pre-processing ############################ 
+
 
 
 

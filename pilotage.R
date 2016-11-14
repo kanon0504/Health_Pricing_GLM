@@ -20,7 +20,6 @@ detection_NA <- function(DATASET)
   return(raw[which(raw != 0)])
 }
 
-
 # See the discrete conditional distribution given some condition
 sort(table(head(panel_ass[panel_ass$sexe == "I",],918)$type_assure))
 
@@ -37,20 +36,20 @@ sort(table(head(panel_ass[panel_ass$sexe == "I",],918)$type_assure))
 # Load datasets on Macbook Pro
 panel_ass <- read.sas7bdat("/Users/Kanon/Google Drive/AXA/data/MSH/panel_ass.sas7bdat")
 panel_generaliste <- read.sas7bdat("/Users/Kanon/Google Drive/AXA/data/MSH/panel_generaliste_decompressed.sas7bdat")
-panel_hospi <- read.sas7bdat("/Users/Kanon/Google Drive/AXA/data/MSH/panel_hospi_decompressed.sas7bdat")
-panel_bilan <- read.sas7bdat("/Users/Kanon/Google Drive/AXA/data/MSH/panel_bilan_decompressed.sas7bdat")
+# panel_hospi <- read.sas7bdat("/Users/Kanon/Google Drive/AXA/data/MSH/panel_hospi_decompressed.sas7bdat")
+# panel_bilan <- read.sas7bdat("/Users/Kanon/Google Drive/AXA/data/MSH/panel_bilan_decompressed.sas7bdat")
 
 # Check the format of each data set
 is.data.frame(panel_ass)
 is.data.frame(panel_generaliste)
-is.data.frame(panel_hospi)
-is.data.frame(panel_bilan)
+# is.data.frame(panel_hospi)
+# is.data.frame(panel_bilan)
 
 # Convert all data.frame objects into data.table objects
 panel_ass <- as.data.frame.table(panel_ass)
 panel_generaliste <- as.data.frame.table(panel_generaliste)
-panel_hospi <- as.data.frame.table(panel_hospi)
-panel_bilan <- as.data.frame.table(panel_bilan)
+# panel_hospi <- as.data.frame.table(panel_hospi)
+# panel_bilan <- as.data.frame.table(panel_bilan)
 
 # Set the pk (primary key) equals to paste(annee,ident_personne) in preparation for left join
 panel_ass$pk <- as.numeric(paste(panel_ass$annee,panel_ass$ident_personne,sep=""))
@@ -59,9 +58,16 @@ panel_ass$pk <- as.numeric(paste(panel_ass$annee,panel_ass$ident_personne,sep=""
 panel_generaliste$pk <- as.numeric(paste(panel_generaliste$annee,panel_generaliste$ident_personne,sep=""))
 dedup_panel_generaliste <- unique(panel_generaliste)
 rm(panel_generaliste)
+
+# ident_personne and annee_soin are included in pk
 dedup_panel_generaliste$ident_personne <- NULL
 dedup_panel_generaliste$annee_soin <- NULL
+
+# somme_frais is not applicable in frequency modelling
 dedup_panel_generaliste$somme_frais <- NULL
+
+# A test has been performed to check weather the presence in panel_generaliste corresponds to
+# the presence in panel_ass. Results turned out to be positive, thus no need in keeping both
 dedup_panel_generaliste$presence <- NULL
 
 # Left outer join of panel_ass and dedup_panel_generaliste
@@ -76,6 +82,7 @@ data_generaliste$somme_quantite[is.na(data_generaliste$somme_quantite)] <- 0
 data_generaliste$date_sortie[is.na(data_generaliste$date_sortie)] <- data_generaliste$date_sortie_obs[which(is.na(data_generaliste$date_sortie))]
 # Delete entries whose date_naissance(age at the same time) is NA(very few, 8 cases in panel_ass)
 data_generaliste <- data_generaliste[-which(is.na(data_generaliste$age)),]
+
 
 
 

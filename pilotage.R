@@ -1,8 +1,8 @@
 library(sas7bdat)
 
 # Load datasets
-panel_ass <- read.sas7bdat("/Users/Kanon/Downloads/panel_ass.sas7bdat")
-panel_generaliste <- read.sas7bdat("/Users/Kanon/Downloads/panel_generaliste_decompressed.sas7bdat")
+panel_ass <- read.sas7bdat("/Users/Kanon/Google Drive/AXA/data/MSH/panel_ass.sas7bdat")
+panel_generaliste <- read.sas7bdat("/Users/Kanon/Google Drive/AXA/data/MSH/panel_generaliste_decompressed.sas7bdat")
 
 # Check the format of each data set
 is.data.frame(panel_ass)

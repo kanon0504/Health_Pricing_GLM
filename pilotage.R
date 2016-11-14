@@ -66,7 +66,20 @@ dedup_panel_generaliste$presence <- NULL
 
 # Left outer join of panel_ass and dedup_panel_generaliste
 data_generaliste <- merge(panel_ass,dedup_panel_generaliste, by = "pk", all.x = TRUE)
-data_generaliste$somme_quantite[is.na(data_generaliste$somme_quantite)] <- 0
-head(data_generaliste)
+
+# Deal with the NA values in data_generaliste
+# Detect all the columns that contain NA value and the number of them
 detection_NA(data_generaliste)
+# Assgin 0 to the frequency column for those who havn't had claims during exposure
+data_generaliste$somme_quantite[is.na(data_generaliste$somme_quantite)] <- 0
+# Replace some of the missing entries(30%) of date_sortie by date_sortie_obs
+data_generaliste$date_sortie[is.na(data_generaliste$date_sortie)] <- data_generaliste$date_sortie_obs[which(is.na(data_generaliste$date_sortie))]
+# Delete entries whose date_naissance(age at the same time) is NA(very few, 8 cases in panel_ass)
+data_generaliste <- data_generaliste[-which(is.na(data_generaliste$age)),]
+
+
+
+
+
+
 

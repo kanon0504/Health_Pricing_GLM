@@ -101,6 +101,15 @@ data_generaliste$pays_2 <- NULL
 ############################ Data Pre-processing ############################ 
 
 
+############################ Generate training and testing data ############################ 
+
+set.seed(5)
+size <- dim(data_generaliste)[1]
+index <- c(1:size)
+training_index <- sample(index, size = 0.8*size, replace = FALSE)
+testing_index <- setdiff(index, training_index)
+
+############################ Generate training and testing data ############################ 
 
 
 

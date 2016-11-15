@@ -109,6 +109,20 @@ random_split <- function(dt, train_portion = 0.8, method = 'omit')
   }
 }
 
+# A function that detects all the binary variables and turns then into factors
+binary_to_factor <- function(DATASET)
+{
+  class <- sapply(DATASET,class)
+  n_set <- names(DATASET)[which(class == 'numeric')]
+  for(name in n_set)
+  {
+    levels <- unique(get(name,DATASET))
+    if(identical(levels,c(1,0))|identical(levels,c(0,1)))
+    { DATASET[[name]] <- factor(DATASET[[name]])}
+  }
+  return(DATASET)
+}
+
 ############################ Functions and tests ############################ 
 
 ############################ Data Pre-processing ############################ 
@@ -179,6 +193,7 @@ data_generaliste$nationalite_2 <- NULL
 data_generaliste$pays_expat_2 <- NULL
 data_generaliste$pays_2 <- NULL
 data_generaliste$nb_adherents <- NULL
+data_generaliste <- binary_to_factor(data_generaliste)
 
 ############################ Data Pre-processing ############################ 
 

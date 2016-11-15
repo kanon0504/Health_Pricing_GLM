@@ -97,6 +97,7 @@ data_generaliste$pk <- NULL
 data_generaliste$nationalite_2 <- NULL
 data_generaliste$pays_expat_2 <- NULL
 data_generaliste$pays_2 <- NULL
+data_generaliste$nb_adherents <- NULL
 
 ############################ Data Pre-processing ############################ 
 
@@ -108,7 +109,13 @@ size <- dim(data_generaliste)[1]
 index <- c(1:size)
 training_index <- sample(index, size = 0.8*size, replace = FALSE)
 testing_index <- setdiff(index, training_index)
-
+tr <- data_generaliste[training_index,]
+te <- data_generaliste[testing_index,]
+xnames <- names(tr)
+to_remove <- c("presence", "somme_quantite", "ident_police", "ident_famille", "IDENT_CONV"
+               , "pointeur_origine", "date_sortie", "ident_personne")
+xnames <- setdiff(xnames, to_remove)
+# glm_model <- 
 ############################ Generate training and testing data ############################ 
 
 

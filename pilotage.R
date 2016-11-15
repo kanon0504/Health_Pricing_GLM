@@ -12,6 +12,7 @@ show_data_as_factor <- function(x)
   {return(length(levels(as.factor(x))))}
 }
 
+
 # A function which returns the names of columns that contains NA value and the number of#
 # NA values it contains #
 detection_NA <- function(DATASET)
@@ -19,8 +20,12 @@ detection_NA <- function(DATASET)
   f<- function(x)
   {return(length(which(is.na(x))))}
   raw <- sapply(DATASET, f)
-  return(raw[which(raw != 0)])
+  if(sum(raw) == 0)
+  {return("None of the entry contains NA value!")}
+  else
+  {return(raw[which(raw != 0)])}
 }
+
 
 # A function that randomly samples the training dataset and testing dataset, a vector in the size of 
 # dataset is created to index all data entries. We allocate with a designate propotion the training
@@ -36,13 +41,76 @@ allocate_dataset <- function(DATASET, seed = 5, training_prop = 0.8)
   testing_index <- setdiff(index, training_index)
   tr <- DATASET[training_index,]
   te <- DATASET[testing_index,]
-  returnlist <- list(tr, te)
-  return(returnlist)
+  print(dim(tr))
+  return_list <- list(tr, te)
+  return(return_list)
 }
 
 
-# See the discrete conditional distribution given some condition #
-sort(table(head(panel_ass[panel_ass$sexe == "I",],918)$type_assure))
+# A random split function
+# method pseudo: Subset firstly a dataset that contains all different levels, randomly fill in the rest.
+# method omit: Remove observations which contain levels that are not appeared in training dataset
+random_split <- function(dt, train_portion = 0.8, method = 'omit')
+{
+  len <- dim(dt)[1]
+  if (method == 'pseudo')
+  {
+    fcts <- names(dt)[which(sapply(dt,is.factor))]
+    train <- data.frame()
+    pre.select <- c()
+    for (i in fcts)
+    {
+      name <- levels(dt[[i]])
+      index <- c()
+      while(length(name) != 0)
+      {
+        index <- c(index, which(dt[[i]]==name[1])[2])
+        name <- name[-1]
+      }
+      pre.select <- c(pre.select,index)
+    }
+    pre.select <- unique(pre.select)
+    reserve.len <- length(pre.select)
+    train.index <- pre.select
+    rest.index <- setdiff(c(1:len),pre.select)
+    add.train <- sample(rest.index,((train_portion*len)-reserve.len))
+    train.index <- c(train.index,rest.index[add.train])
+    test.index <- setdiff(c(1:len),train.index)
+    train.set <- dt[train.index,]
+    train.set <- train.set[complete.cases(train.set),]
+    test.set <- dt[test.index,]
+    test.set <- test.set[complete.cases(test.set),]
+    returnlist <- list(train.set,test.set)
+    return(returnlist)
+  }
+  
+  
+  if (method == 'omit')
+  {
+    fcts.index <- sapply(dt,is.factor)
+    train.index <- sample(c(1:len),round(train_portion*len))
+    test.index <- setdiff(c(1:len),train.index)
+    train.set <- dt[train.index,]
+    #    train.set <- train.set[complete.cases(train.set),]
+    test.set <- dt[test.index,]
+    #    test.set <- test.set[complete.cases(test.set),]
+    fcts <- names(train.set)[which(sapply(train.set,is.factor))]
+    name <- c()
+    for (i in fcts) {name <- c(name,levels(train.set[[i]]))}
+    f <- function(x) 
+    {
+      if (length(intersect(x,name))==0)
+        return(F)
+      else
+        return(T)
+    }
+    fact.test.set <- test.set[,which(sapply(test.set,is.factor))]
+    clean.index <- which(apply(fact.test.set,1,f))
+    test.set <- test.set[clean.index,]
+    returnlist <- list('train.set' = train.set, 'test.set' = test.set)
+    return(returnlist)
+  }
+}
 
 ############################ Functions and tests ############################ 
 
@@ -65,12 +133,6 @@ is.data.frame(panel_ass)
 is.data.frame(panel_generaliste)
 # is.data.frame(panel_hospi)
 # is.data.frame(panel_bilan)
-
-# Convert all data.frame objects into data.table objects #
-panel_ass <- as.data.frame.table(panel_ass)
-panel_generaliste <- as.data.frame.table(panel_generaliste)
-# panel_hospi <- as.data.frame.table(panel_hospi)
-# panel_bilan <- as.data.frame.table(panel_bilan)
 
 # Set the pk (primary key) equals to paste(annee,ident_personne) in preparation for left join #
 panel_ass$pk <- as.numeric(paste(panel_ass$annee,panel_ass$ident_personne,sep=""))
@@ -109,6 +171,9 @@ data_generaliste$date_sortie[is.na(data_generaliste$date_sortie)] <-
 # Delete entries whose date_naissance(age at the same time) is NA(very few, 8 cases in panel_ass) #
 data_generaliste <- data_generaliste[-which(is.na(data_generaliste$age)),]
 
+# Detect all the columns that contain NA value and the number of them #
+detection_NA(data_generaliste)
+
 # Delete primary key
 data_generaliste$pk <- NULL
 
@@ -123,9 +188,10 @@ data_generaliste$nb_adherents <- NULL
 
 ############################ Generate training and testing data ############################ 
 
-returnlist <- allocate_dataset(data_generaliste)
-tr <- returnlist$tr # training dataset
-te <- returnlist$te # testing dataset
+returnlist <- random_split(data_generaliste)
+tr <- returnlist$train.set # training dataset
+te <- returnlist$test.set # testing dataset
+rm(returnlist)
 
 # Create a formula object for fitting a glm model as the baseline
 xnames <- names(tr)

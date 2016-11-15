@@ -104,18 +104,29 @@ data_generaliste$nb_adherents <- NULL
 
 ############################ Generate training and testing data ############################ 
 
+# Set the seed for the psudo random function sample
 set.seed(5)
+
+# Get the size of the dataset(number of entries)
 size <- dim(data_generaliste)[1]
+
+# In order to randomly sample the training dataset and testing dataset, a vector in the size of 
+# dataset is created to index all data entries. We allocate with a designate propotion the training
+# dataset(tr) and the testing dataset(te) with respect to the index
 index <- c(1:size)
 training_index <- sample(index, size = 0.8*size, replace = FALSE)
 testing_index <- setdiff(index, training_index)
 tr <- data_generaliste[training_index,]
 te <- data_generaliste[testing_index,]
+
+# Create a formula object for fitting a glm model as the baseline
 xnames <- names(tr)
 to_remove <- c("presence", "somme_quantite", "ident_police", "ident_famille", "IDENT_CONV"
                , "pointeur_origine", "date_sortie", "ident_personne")
 xnames <- setdiff(xnames, to_remove)
-# glm_model <- 
+
+
+glm_model <- 
 ############################ Generate training and testing data ############################ 
 
 

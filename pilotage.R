@@ -123,6 +123,15 @@ binary_to_factor <- function(DATASET)
   return(DATASET)
 }
 
+# A function that detects negative responding values in a dataset
+# As negative values are not allowed for the 'Poisson' family
+# Those entries must be eliminated
+
+eliminate_negative <- function(DATASET)
+{
+  to_eliminate <- which(DATASET$somme_quantite < 0)
+  return(DATASET)
+}
 ############################ Functions and tests ############################ 
 
 ############################ Data Pre-processing ############################ 

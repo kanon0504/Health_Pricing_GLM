@@ -210,9 +210,10 @@ xnames <- names(tr)
 to_remove <- c("presence", "somme_quantite", "ident_police", "ident_famille", "IDENT_CONV"
                , "pointeur_origine", "date_sortie", "ident_personne")
 xnames <- setdiff(xnames, to_remove)
+fmla <- as.formula(paste("tr$somme_quantite ~ ",paste(xnames,collapse = '+')))
 
 
-# glm_model <- 
+glm_model <- glm(fmla, family = poisson(link = "log"), offset = tr$presence, data = tr)
 ############################ Generate training and testing data ############################ 
 
 

@@ -12,7 +12,6 @@ show_data_as_factor <- function(x)
   {return(length(levels(as.factor(x))))}
 }
 
-
 # A function which returns the names of columns that contains NA value and the number of#
 # NA values it contains #
 detection_NA <- function(DATASET)
@@ -25,7 +24,6 @@ detection_NA <- function(DATASET)
   else
   {return(raw[which(raw != 0)])}
 }
-
 
 # A function that randomly samples the training dataset and testing dataset, a vector in the size of 
 # dataset is created to index all data entries. We allocate with a designate propotion the training
@@ -45,7 +43,6 @@ allocate_dataset <- function(DATASET, seed = 5, training_prop = 0.8)
   return_list <- list(tr, te)
   return(return_list)
 }
-
 
 # A random split function
 # method pseudo: Subset firstly a dataset that contains all different levels, randomly fill in the rest.

@@ -254,19 +254,8 @@ plotgain <- function(predrisk, truerisk = NULL, exposure = NULL, nbpts = 1000,
 }
 
 
-#' Gini Index
-#'
-#' Calculate the AUC for a binary classifier
-#'
-#' @param predrisk predicted risk
-#' @param truerisk true risk
-#' @param exposure exposure
-#' @param significance number of decimal places for the auc
-#' @param normalize [bool] normalize the gini index
-#'
-#' @return gini indexes for the given (predrisk, truerisk, exposure)
-#'
-#' @export
+# Gini Index
+# Calculate the AUC for a binary classifier
 kpi_gini <- function(predrisk, truerisk = NULL, exposure = NULL, significance = 2,
                      normalize = F, nbpts = 1000)
 {

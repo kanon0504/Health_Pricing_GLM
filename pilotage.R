@@ -566,7 +566,7 @@ glm_model <- glm(fmla, family = poisson(link = "log"), offset = tr$presence, dat
 
 ############################ Testing of glm_model model ############################ 
 
-prediction <- predict(glm_model, te[,xnames], type = 'response')
+prediction <- predict.glm(glm_model, newdata = te[,xnames], type = "response")
 
 kpi <- kpi_gini(predrisk = prediction, truerisk = te$somme_quantite, exposure = te$presence, significance = 6)
 ############################ Testing of glm_model model ############################ 

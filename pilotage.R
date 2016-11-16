@@ -130,6 +130,7 @@ binary_to_factor <- function(DATASET)
 eliminate_negative <- function(DATASET)
 {
   to_eliminate <- which(DATASET$somme_quantite < 0)
+  DATASET <- DATASET[-to_eliminate,]
   return(DATASET)
 }
 ############################ Functions and tests ############################ 
@@ -200,9 +201,11 @@ data_generaliste$pk <- NULL
 # Delete variables that has numerous levels which have few information
 data_generaliste$nationalite_2 <- NULL
 data_generaliste$pays_expat_2 <- NULL
+data_generaliste$pays <- NULL
 data_generaliste$pays_2 <- NULL
 data_generaliste$nb_adherents <- NULL
 data_generaliste <- binary_to_factor(data_generaliste)
+data_generaliste <- eliminate_negative(data_generaliste)
 
 ############################ Data Pre-processing ############################ 
 
@@ -226,4 +229,9 @@ glm_model <- glm(fmla, family = poisson(link = "log"), offset = tr$presence, dat
 ############################ Generate training and testing data ############################ 
 
 
+############################ Testing of glm_model model ############################ 
+
+
+
+############################ Testing of glm_model model ############################ 
 

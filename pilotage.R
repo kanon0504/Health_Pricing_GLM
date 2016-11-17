@@ -549,7 +549,7 @@ xnames <- setdiff(xnames, to_remove)
 fmla <- as.formula(paste("tr$somme_quantite ~ ",paste(xnames,collapse = '+')))
 
 
-glm_model <- glm(fmla, family = poisson(link = "log"), offset = tr$presence, data = tr)
+glm_model <- glm(fmla, family = poisson(link = "log"), offset = offset(tr$presence), data = tr)
 ############################ Generate training and testing data ############################ 
 
 

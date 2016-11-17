@@ -12,7 +12,7 @@ show_data_as_factor <- function(x)
   {return(length(levels(as.factor(x))))}
 }
 
-# A function which returns the names of columns that contains NA value and the number of#
+# A function which returns the names of columns that contains NA value and the number of #
 # NA values it contains #
 detection_NA <- function(DATASET)
 {

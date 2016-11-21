@@ -1,4 +1,5 @@
-library(utils)
+setwd("/Users/Kanon/Documents/Health_Pricing_GLM")
+source('utils.R')
 
 
 # A function that loads in polices and claims dataset then performs merging and selection
@@ -9,13 +10,11 @@ data_preprocessing <- function(name_claim_data, verbose = TRUE)
   panel_ass <- sas7bdat::read.sas7bdat("/Users/Kanon/Google Drive/AXA/data/MSH/panel_ass.sas7bdat")
   # Load datasets on Windows #
   # panel_ass <- read.sas7bdat("C:/Users/s636000/Documents/Expat/data/MSH/panel_ass.sas7bdat")
-  # panel_generaliste <- read.sas7bdat("C:/Users/s636000/Documents/Expat/data/MSH/panel_generaliste_decompressed.sas7bdat")
-  # panel_hospi <- read.sas7bdat("C:/Users/s636000/Documents/Expat/data/MSH/panel_hospi_decompressed.sas7bdat")
-  # panel_bilan <- read.sas7bdat("C:/Users/s636000/Documents/Expat/data/MSH/panel_bilan_decompressed.sas7bdat")
+  # claim_data <- read.sas7bdat(paste0("C:/Users/s636000/Documents/Expat/data/MSH/",name_claim_data))
   
   # Check the format of each data set #
   if (verbose == TRUE)
-  {print("Check weather ", name_claim_data, " is a data.frame object: ")}
+  {print(paste0("Check weather ", name_claim_data, " is a data.frame object: "))}
   is.data.frame(claim_data)
   
   # Set the pk (primary key) equals to paste(annee,ident_personne) in preparation for left join #
@@ -25,10 +24,10 @@ data_preprocessing <- function(name_claim_data, verbose = TRUE)
   
   # Check duplication in the loaded claims dataset. If exist, remove all duplications #
   if (verbose == TRUE)
-  {print(paste0("Checking duplication in ", deparse(substitute(claim_data)), "!"))}
+  {print(paste0("Checking duplication in ", deparse(substitute(claim_data)), "..."))}
   claim_data <- check_dup(claim_data, verbose = verbose)
   
-  # Preparation with dataset panel_generaliste for consistancy #
+  # Preparation with dataset claim_data for consistancy #
   if (verbose == TRUE)
   {print(paste0("Adding a new variable serves as the primary key 'pk' in ", name_claim_data) )}
   claim_data$pk <- as.numeric(paste(claim_data$annee,claim_data$ident_personne,sep=""))
@@ -36,25 +35,25 @@ data_preprocessing <- function(name_claim_data, verbose = TRUE)
   # In preparation for the left outer join, some redundant variables in claim_data #
   # are removed #
   # ident_personne and annee_soin are included in pk #
-  # A test has been performed to check weather the presence in panel_generaliste corresponds to #
+  # A test has been performed to check weather the presence in claim_data corresponds to #
   # the presence in panel_ass. Results turned out to be positive, thus no need in keeping both #
-  print(paste0("Variables 'ident_personne', 'annee_soin', 'presence' are removed from ", name_claim_data))
+  if (verbose == TRUE)
+  {print(paste0("Variables 'ident_personne', 'annee_soin', 'presence' are removed from ", name_claim_data))}
   claim_data$ident_personne <- NULL
   claim_data$annee_soin <- NULL
   claim_data$presence <- NULL
   
-  # Left outer join of panel_ass and dedup_panel_generaliste #
-  data_generaliste <- merge(panel_ass,dedup_panel_generaliste, by = "pk", all.x = TRUE)
+  # Left outer join of panel_ass and claim_data #
+  if (verbose == TRUE)
+  {print(paste0("Left outer joining ",name_claim_data, " to panel_ass by key 'pk'..."))}
+  merged_data <- merge(panel_ass,claim_data, by = "pk", all.x = TRUE)
+  
+  ## Deal with the NA values in data_generaliste ##
+  # Detect all the columns that contain NA value and the number of them #
+  detection_NA(merged_data)
+  
 }
 
-
-# Left outer join of panel_ass and dedup_panel_generaliste #
-data_generaliste <- merge(panel_ass,dedup_panel_generaliste, by = "pk", all.x = TRUE)
-
-
-## Deal with the NA values in data_generaliste ##
-# Detect all the columns that contain NA value and the number of them #
-detection_NA(data_generaliste)
 
 # Assgin 0 to the frequency column for those who havn't had claims during exposure #
 data_generaliste$somme_quantite[is.na(data_generaliste$somme_quantite)] <- 0

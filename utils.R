@@ -1,6 +1,6 @@
 ############################ Functions and tests ############################ 
 
-# A function that checks duplication of a loaded dataset #
+# A function that checks and removes duplication of a loaded dataset #
 check_dup <- function(DATASET, verbose = TRUE)
 {
   size <- dim(DATASET)[1]

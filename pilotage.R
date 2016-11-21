@@ -2,7 +2,7 @@ library(utils)
 
 
 # A function that loads in polices and claims dataset then performs merging and selection
-data_preprocessing <- function(name_claim_data)
+data_preprocessing <- function(name_claim_data, verbose = TRUE)
 {
   # Load datasets on Macbook Pro #
   claim_data <- sas7bdat::read.sas7bdat(paste0("/Users/Kanon/Google Drive/AXA/data/MSH/",name_claim_data))
@@ -14,19 +14,23 @@ data_preprocessing <- function(name_claim_data)
   # panel_bilan <- read.sas7bdat("C:/Users/s636000/Documents/Expat/data/MSH/panel_bilan_decompressed.sas7bdat")
   
   # Check the format of each data set #
-  print("Check weather ", name_claim_data, " is a data.frame object: ")
+  if (verbose == TRUE)
+  {print("Check weather ", name_claim_data, " is a data.frame object: ")}
   is.data.frame(claim_data)
   
   # Set the pk (primary key) equals to paste(annee,ident_personne) in preparation for left join #
-  print(paste0("Adding a new variable serves as the primary key 'pk' in panel_ass") )
+  if (verbose == TRUE)
+  {print(paste0("Adding a new variable serves as the primary key 'pk' in panel_ass") )}
   panel_ass$pk <- as.numeric(paste(panel_ass$annee,panel_ass$ident_personne,sep=""))
   
   # Check duplication in the loaded claims dataset. If exist, remove all duplications #
-  print(paste0("Checking duplication in ", deparse(substitute(claim_data)), "!"))
-  claim_data <- check_dup(claim_data)
+  if (verbose == TRUE)
+  {print(paste0("Checking duplication in ", deparse(substitute(claim_data)), "!"))}
+  claim_data <- check_dup(claim_data, verbose = verbose)
   
   # Preparation with dataset panel_generaliste for consistancy #
-  print(paste0("Adding a new variable serves as the primary key 'pk' in ", name_claim_data) )
+  if (verbose == TRUE)
+  {print(paste0("Adding a new variable serves as the primary key 'pk' in ", name_claim_data) )}
   claim_data$pk <- as.numeric(paste(claim_data$annee,claim_data$ident_personne,sep=""))
   
   # In preparation for the left outer join, some redundant variables in claim_data #
@@ -39,15 +43,9 @@ data_preprocessing <- function(name_claim_data)
   claim_data$annee_soin <- NULL
   claim_data$presence <- NULL
   
-  
-  
+  # Left outer join of panel_ass and dedup_panel_generaliste #
+  data_generaliste <- merge(panel_ass,dedup_panel_generaliste, by = "pk", all.x = TRUE)
 }
-
-
-
-
-
-
 
 
 # Left outer join of panel_ass and dedup_panel_generaliste #

@@ -18,13 +18,29 @@ data_preprocessing <- function(name_claim_data)
   is.data.frame(claim_data)
   
   # Set the pk (primary key) equals to paste(annee,ident_personne) in preparation for left join #
+  print(paste0("Adding a new variable serves as the primary key 'pk' in panel_ass") )
   panel_ass$pk <- as.numeric(paste(panel_ass$annee,panel_ass$ident_personne,sep=""))
   
+  # Check duplication in the loaded claims dataset. If exist, remove all duplications #
+  print(paste0("Checking duplication in ", deparse(substitute(claim_data)), "!"))
+  claim_data <- check_dup(claim_data)
+  
   # Preparation with dataset panel_generaliste for consistancy #
+  print(paste0("Adding a new variable serves as the primary key 'pk' in ", name_claim_data) )
   claim_data$pk <- as.numeric(paste(claim_data$annee,claim_data$ident_personne,sep=""))
   
-  # Check duplication in the loaded claims dataset. If exist, remove all duplications #
-  claim_data <- check_dup(claim_data)
+  # In preparation for the left outer join, some redundant variables in claim_data #
+  # are removed #
+  # ident_personne and annee_soin are included in pk #
+  # A test has been performed to check weather the presence in panel_generaliste corresponds to #
+  # the presence in panel_ass. Results turned out to be positive, thus no need in keeping both #
+  print(paste0("Variables 'ident_personne', 'annee_soin', 'presence' are removed from ", name_claim_data))
+  claim_data$ident_personne <- NULL
+  claim_data$annee_soin <- NULL
+  claim_data$presence <- NULL
+  
+  
+  
 }
 
 
@@ -32,16 +48,7 @@ data_preprocessing <- function(name_claim_data)
 
 
 
-# ident_personne and annee_soin are included in pk #
-dedup_panel_generaliste$ident_personne <- NULL
-dedup_panel_generaliste$annee_soin <- NULL
 
-# somme_frais is not applicable in frequency modelling #
-dedup_panel_generaliste$somme_frais <- NULL
-
-# A test has been performed to check weather the presence in panel_generaliste corresponds to #
-# the presence in panel_ass. Results turned out to be positive, thus no need in keeping both #
-dedup_panel_generaliste$presence <- NULL
 
 # Left outer join of panel_ass and dedup_panel_generaliste #
 data_generaliste <- merge(panel_ass,dedup_panel_generaliste, by = "pk", all.x = TRUE)

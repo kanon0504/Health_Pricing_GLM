@@ -1,33 +1,36 @@
-library(sas7bdat)
 library(utils)
 
-############################ Data Pre-processing ############################ 
 
-# Load datasets on Windows #
-# panel_ass <- read.sas7bdat("C:/Users/s636000/Documents/Expat/data/MSH/panel_ass.sas7bdat")
-# panel_generaliste <- read.sas7bdat("C:/Users/s636000/Documents/Expat/data/MSH/panel_generaliste_decompressed.sas7bdat")
-# panel_hospi <- read.sas7bdat("C:/Users/s636000/Documents/Expat/data/MSH/panel_hospi_decompressed.sas7bdat")
-# panel_bilan <- read.sas7bdat("C:/Users/s636000/Documents/Expat/data/MSH/panel_bilan_decompressed.sas7bdat")
+# A function that loads in polices and claims dataset then performs merging and selection
+data_preprocessing <- function(name_claim_data)
+{
+  # Load datasets on Macbook Pro #
+  claim_data <- sas7bdat::read.sas7bdat(paste0("/Users/Kanon/Google Drive/AXA/data/MSH/",name_claim_data))
+  panel_ass <- sas7bdat::read.sas7bdat("/Users/Kanon/Google Drive/AXA/data/MSH/panel_ass.sas7bdat")
+  # Load datasets on Windows #
+  # panel_ass <- read.sas7bdat("C:/Users/s636000/Documents/Expat/data/MSH/panel_ass.sas7bdat")
+  # panel_generaliste <- read.sas7bdat("C:/Users/s636000/Documents/Expat/data/MSH/panel_generaliste_decompressed.sas7bdat")
+  # panel_hospi <- read.sas7bdat("C:/Users/s636000/Documents/Expat/data/MSH/panel_hospi_decompressed.sas7bdat")
+  # panel_bilan <- read.sas7bdat("C:/Users/s636000/Documents/Expat/data/MSH/panel_bilan_decompressed.sas7bdat")
+  
+  # Check the format of each data set #
+  print("Check weather ", name_claim_data, " is a data.frame object: ")
+  is.data.frame(claim_data)
+  
+  # Set the pk (primary key) equals to paste(annee,ident_personne) in preparation for left join #
+  panel_ass$pk <- as.numeric(paste(panel_ass$annee,panel_ass$ident_personne,sep=""))
+  
+  # Preparation with dataset panel_generaliste for consistancy #
+  claim_data$pk <- as.numeric(paste(claim_data$annee,claim_data$ident_personne,sep=""))
+  
+  dedup_panel_generaliste <- unique(panel_generaliste)
+  rm(panel_generaliste)
+}
 
-# Load datasets on Macbook Pro #
-panel_ass <- read.sas7bdat("/Users/Kanon/Google Drive/AXA/data/MSH/panel_ass.sas7bdat")
-panel_generaliste <- read.sas7bdat("/Users/Kanon/Google Drive/AXA/data/MSH/panel_generaliste_decompressed.sas7bdat")
-# panel_hospi <- read.sas7bdat("/Users/Kanon/Google Drive/AXA/data/MSH/panel_hospi_decompressed.sas7bdat")
-# panel_bilan <- read.sas7bdat("/Users/Kanon/Google Drive/AXA/data/MSH/panel_bilan_decompressed.sas7bdat")
 
-# Check the format of each data set #
-is.data.frame(panel_ass)
-is.data.frame(panel_generaliste)
-# is.data.frame(panel_hospi)
-# is.data.frame(panel_bilan)
 
-# Set the pk (primary key) equals to paste(annee,ident_personne) in preparation for left join #
-panel_ass$pk <- as.numeric(paste(panel_ass$annee,panel_ass$ident_personne,sep=""))
 
-# Preparation with dataset panel_generaliste for consistancy #
-panel_generaliste$pk <- as.numeric(paste(panel_generaliste$annee,panel_generaliste$ident_personne,sep=""))
-dedup_panel_generaliste <- unique(panel_generaliste)
-rm(panel_generaliste)
+
 
 # ident_personne and annee_soin are included in pk #
 dedup_panel_generaliste$ident_personne <- NULL

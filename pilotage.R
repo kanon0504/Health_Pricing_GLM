@@ -23,8 +23,8 @@ data_preprocessing <- function(name_claim_data)
   # Preparation with dataset panel_generaliste for consistancy #
   claim_data$pk <- as.numeric(paste(claim_data$annee,claim_data$ident_personne,sep=""))
   
-  dedup_panel_generaliste <- unique(panel_generaliste)
-  rm(panel_generaliste)
+  # Check duplication in the loaded claims dataset. If exist, remove all duplications #
+  claim_data <- check_dup(claim_data)
 }
 
 

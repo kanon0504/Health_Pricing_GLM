@@ -1,5 +1,25 @@
 ############################ Functions and tests ############################ 
 
+# A function that checks duplication of a loaded dataset #
+check_dup <- function(DATASET)
+{
+  size <- dim(DATASET)[1]
+  dedup_size <- dim(unique(DATASET))[1]
+  if (size == dedup_size)
+  {
+    print(paste0("No duplication in ",deparse(substitute(DATASET)), "!"))
+    return(DATASET)
+  }
+  else if(size < dedup_size)
+  {print("ERROR!")}
+  else if(size > dedup_size)
+  {
+    DATASET <- unique(DATASET)
+    print(paste0(size-dedup_size, " duplication(s) have(s) been removed from ", deparse(substitute(DATASET)), "!"))
+    return(DATASET)
+  }
+}
+
 # A function that allows to show the schema of a dataframe with all variables converted #
 # to factors #
 show_data_as_factor <- function(x)

@@ -1,14 +1,14 @@
 ############################ Functions and tests ############################ 
 
 # A function that checks and removes duplication of a loaded dataset #
-check_dup <- function(DATASET, verbose = TRUE)
+check_dup <- function(DATASET, name, verbose = TRUE)
 {
   size <- dim(DATASET)[1]
   dedup_size <- dim(unique(DATASET))[1]
   if (size == dedup_size)
   {
     if (verbose == TRUE)
-    {print(paste0("No duplication in ",deparse(substitute(DATASET)), "!"))}
+    {print(paste0("No duplication in ", name, "!"))}
     return(DATASET)
   }
   else if(size < dedup_size)
@@ -21,7 +21,7 @@ check_dup <- function(DATASET, verbose = TRUE)
     DATASET <- unique(DATASET)
     if (verbose == TRUE)
     {print(paste0(size-dedup_size, " duplication(s) have(s) been removed from "
-                  , deparse(substitute(DATASET)), "!"))}
+                  , name, "!"))}
     return(DATASET)
   }
 }

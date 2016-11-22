@@ -2,11 +2,21 @@ setwd("/Users/Kanon/Documents/Health_Pricing_GLM")
 source('utils.R')
 
 
+for (name_claim_data in database)
+{
+  name <- name_claim_data
+  assign(name_claim_data,sas7bdat::read.sas7bdat(paste0("/Users/Kanon/Google Drive/AXA/data/MSH/"
+                                                        , name_claim_data)))
+  check_dup(eval(parse(text = name_claim_data)), name, verbose = verbose)
+  rm(name)
+}
+
 # A function that loads in polices and claims dataset then performs merging and selection
 data_preprocessing <- function(name_claim_data, verbose = TRUE)
 {
   # Load datasets on Macbook Pro #
-  claim_data <- sas7bdat::read.sas7bdat(paste0("/Users/Kanon/Google Drive/AXA/data/MSH/",name_claim_data))
+  claim_data <- sas7bdat::read.sas7bdat(paste0("/Users/Kanon/Google Drive/AXA/data/MSH/"
+                                               , name_claim_data))
   panel_ass <- sas7bdat::read.sas7bdat("/Users/Kanon/Google Drive/AXA/data/MSH/panel_ass.sas7bdat")
   # Load datasets on Windows #
   # panel_ass <- read.sas7bdat("C:/Users/s636000/Documents/Expat/data/MSH/panel_ass.sas7bdat")
@@ -25,7 +35,7 @@ data_preprocessing <- function(name_claim_data, verbose = TRUE)
   # Check duplication in the loaded claims dataset. If exist, remove all duplications #
   if (verbose == TRUE)
   {print(paste0("Checking duplication in ", deparse(substitute(claim_data)), "..."))}
-  claim_data <- check_dup(claim_data, verbose = verbose)
+  claim_data <- check_dup(claim_data, name_claim_data, verbose = verbose)
   
   # Preparation with dataset claim_data for consistancy #
   if (verbose == TRUE)
@@ -38,7 +48,8 @@ data_preprocessing <- function(name_claim_data, verbose = TRUE)
   # A test has been performed to check weather the presence in claim_data corresponds to #
   # the presence in panel_ass. Results turned out to be positive, thus no need in keeping both #
   if (verbose == TRUE)
-  {print(paste0("Variables 'ident_personne', 'annee_soin', 'presence' are removed from ", name_claim_data))}
+  {print(paste0("Variables 'ident_personne', 'annee_soin'
+                , 'presence' are removed from ", name_claim_data))}
   claim_data$ident_personne <- NULL
   claim_data$annee_soin <- NULL
   claim_data$presence <- NULL
@@ -81,6 +92,20 @@ merged_data$nb_adherents <- NULL
 merged_data <- binary_to_factor(merged_data)
 merged_data <- eliminate_negative(merged_data)
 
+
+
+features <- c("autres_prothese", "protheses_auditives_pharmacie", "auxiliaire_medical", "kinesitherapie"
+              , "bilan_de_sante", "cures_thermales", "dentaire_general", "implants", "orthodontie"
+              , "protheses_dentaires", "parodontologie", "divers", "generaliste", "specialiste"
+              , "hospitalisation", "chambre_particuliere", "hospitalisation_de_jour", "lit_accompagnant"
+              , "maternite_generale", "cesarienne", "chiropractie", "osteopathie", "acuponcture"
+              , "autres_medecines_alternatives", "medecine_preventive", "radiotherapie", "chimiotherapie"
+              , "keratomie", "lentilles", "montures", "verres", "optique", "petit_risque", "pharmacie"
+              , "psychiatrie", "vaccins", "traitement_de_la_fertilite", "ambulance_transport")
+
+database <- list.files(path = '/Users/Kanon/Google Drive/AXA/data/MSH/')
+
+
 ############################ Data Pre-processing ############################ 
 
 
@@ -107,6 +132,8 @@ glm_model <- glm(fmla, family = poisson(link = log), offset = offset(tr$presence
 
 prediction <- predict.glm(glm_model, newdata = te[,xnames], type = "response")
 
-kpi <- kpi_gini(predrisk = prediction, truerisk = te$somme_quantite, exposure = te$presence, significance = 6)
+kpi <- kpi_gini(predrisk = prediction, truerisk = te$somme_quantite
+                , exposure = te$presence, significance = 6)
+
 ############################ Testing of glm_model model ############################ 
 

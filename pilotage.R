@@ -48,44 +48,45 @@ data_preprocessing <- function(name_claim_data, verbose = TRUE)
   {print(paste0("Left outer joining ",name_claim_data, " to panel_ass by key 'pk'..."))}
   merged_data <- merge(panel_ass,claim_data, by = "pk", all.x = TRUE)
   
-  ## Deal with the NA values in data_generaliste ##
+  ## Deal with the NA values in merged_data ##
+  
+  # Detect all the columns that contain NA value and the number of them #
+  detection_NA(merged_data)
+  # Assign 0 to the frequency column for those who haven't had claims during exposure #
+  merged_data$somme_quantite[is.na(merged_data$somme_quantite)] <- 0
+  # Assign 0 to the cost column for those who haven't had claims during exposure #
+  merged_data$somme_frais[is.na(merged_data$somme_frais)] <- 0
+  # Replace some of the missing entries(30%) of date_sortie by date_sortie_obs #
+  merged_data$date_sortie[is.na(merged_data$date_sortie)] <- 
+    merged_data$date_sortie_obs[which(is.na(merged_data$date_sortie))]
+  # Delete entries whose date_naissance(age at the same time) is NA(very few, 8 cases in panel_ass) #
+  merged_data <- merged_data[-which(is.na(merged_data$age)),]
   # Detect all the columns that contain NA value and the number of them #
   detection_NA(merged_data)
   
 }
 
 
-# Assgin 0 to the frequency column for those who havn't had claims during exposure #
-data_generaliste$somme_quantite[is.na(data_generaliste$somme_quantite)] <- 0
 
-# Replace some of the missing entries(30%) of date_sortie by date_sortie_obs #
-data_generaliste$date_sortie[is.na(data_generaliste$date_sortie)] <- 
-  data_generaliste$date_sortie_obs[which(is.na(data_generaliste$date_sortie))]
-
-# Delete entries whose date_naissance(age at the same time) is NA(very few, 8 cases in panel_ass) #
-data_generaliste <- data_generaliste[-which(is.na(data_generaliste$age)),]
-
-# Detect all the columns that contain NA value and the number of them #
-detection_NA(data_generaliste)
 
 # Delete primary key
-data_generaliste$pk <- NULL
+merged_data$pk <- NULL
 
 # Delete variables that has numerous levels which have few information
-data_generaliste$nationalite_2 <- NULL
-data_generaliste$pays_expat_2 <- NULL
-data_generaliste$pays <- NULL
-data_generaliste$pays_2 <- NULL
-data_generaliste$nb_adherents <- NULL
-data_generaliste <- binary_to_factor(data_generaliste)
-data_generaliste <- eliminate_negative(data_generaliste)
+merged_data$nationalite_2 <- NULL
+merged_data$pays_expat_2 <- NULL
+merged_data$pays <- NULL
+merged_data$pays_2 <- NULL
+merged_data$nb_adherents <- NULL
+merged_data <- binary_to_factor(merged_data)
+merged_data <- eliminate_negative(merged_data)
 
 ############################ Data Pre-processing ############################ 
 
 
 ############################ Generate training and testing data ############################ 
 
-returnlist <- random_split(data_generaliste)
+returnlist <- random_split(merged_data)
 tr <- returnlist$train.set # training dataset
 te <- returnlist$test.set # testing dataset
 rm(returnlist)

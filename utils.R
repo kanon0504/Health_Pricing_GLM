@@ -165,10 +165,29 @@ binary_to_factor <- function(DATASET)
 # As negative values are not allowed for the 'Poisson' family
 # Those entries must be eliminated
 
-eliminate_negative <- function(DATASET)
+eliminate_negative <- function(DATASET, verbose = TRUE)
 {
-  to_eliminate <- which(DATASET$somme_quantite < 0)
-  DATASET <- DATASET[-to_eliminate,]
+  size_o <- dim(DATASET)[1]
+  
+  # Find the observations who contain negative value of somme_quantite
+  quantite_to_eliminate <- which(DATASET$somme_quantite < 0)
+  size_q <- length(quantite_to_eliminate)
+  if (verbose == TRUE)
+  {print(paste0(size_q," observations contain negative value in 'somme_quantite'!"))}
+  
+  # Find the observations who contain negative value of somme_frais
+  frais_to_eliminate <- which(DATASET$somme_frais < 0)
+  size_f <- length(frais_to_eliminate)
+  if (verbose == TRUE)
+  {print(paste0(size_f," observations contain negative value in 'somme_frais'!"))}
+  
+  # Merge to get the set of observations to eliminate from DATASET
+  to_eliminate <- c(quantite_to_eliminate,frais_to_eliminate)
+  if (length(to_eliminate) > 0)
+  {DATASET <- DATASET[-to_eliminate,]}
+  size <- dim(DATASET)[1]
+  if (verbose == TRUE)
+  {print(paste0(size_o - size, " observations are eliminated for containing negative value!"))}
   return(DATASET)
 }
 

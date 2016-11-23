@@ -2,22 +2,25 @@ setwd("/Users/Kanon/Documents/Health_Pricing_GLM")
 source('utils.R')
 
 
-for (name_claim_data in database)
+for(name_claim_data in database)
 {
   name <- name_claim_data
-  assign(name_claim_data,sas7bdat::read.sas7bdat(paste0("/Users/Kanon/Google Drive/AXA/data/MSH/"
-                                                        , name_claim_data)))
-  check_dup(eval(parse(text = name_claim_data)), name, verbose = verbose)
+  #claim_data <- sas7bdat::read.sas7bdat(paste0("/Users/Kanon/Google Drive/AXA/data/MSH/"
+  #                                                      , name_claim_data))
+  #claim_data$pk <- as.numeric(paste(claim_data$annee,claim_data$ident_personne,sep=""))
+  #check_dup(claim_data, name, verbose = verbose)
+  detection_NA(eval(parse(text = name)))
   rm(name)
 }
 
 # A function that loads in polices and claims dataset then performs merging and selection
-data_preprocessing <- function(name_claim_data, verbose = TRUE)
+data_preprocessing <- function(name_claim_data, verbose = TRUE, panel_ass = panel_ass)
 {
   # Load datasets on Macbook Pro #
   claim_data <- sas7bdat::read.sas7bdat(paste0("/Users/Kanon/Google Drive/AXA/data/MSH/"
                                                , name_claim_data))
-  panel_ass <- sas7bdat::read.sas7bdat("/Users/Kanon/Google Drive/AXA/data/MSH/panel_ass.sas7bdat")
+  if (panel_ass == FALSE)
+  {panel_ass <- sas7bdat::read.sas7bdat("/Users/Kanon/Google Drive/AXA/data/MSH/panel_ass.sas7bdat")}
   # Load datasets on Windows #
   # panel_ass <- read.sas7bdat("C:/Users/s636000/Documents/Expat/data/MSH/panel_ass.sas7bdat")
   # claim_data <- read.sas7bdat(paste0("C:/Users/s636000/Documents/Expat/data/MSH/",name_claim_data))
@@ -32,15 +35,15 @@ data_preprocessing <- function(name_claim_data, verbose = TRUE)
   {print(paste0("Adding a new variable serves as the primary key 'pk' in panel_ass") )}
   panel_ass$pk <- as.numeric(paste(panel_ass$annee,panel_ass$ident_personne,sep=""))
   
-  # Check duplication in the loaded claims dataset. If exist, remove all duplications #
-  if (verbose == TRUE)
-  {print(paste0("Checking duplication in ", deparse(substitute(claim_data)), "..."))}
-  claim_data <- check_dup(claim_data, name_claim_data, verbose = verbose)
-  
   # Preparation with dataset claim_data for consistancy #
   if (verbose == TRUE)
   {print(paste0("Adding a new variable serves as the primary key 'pk' in ", name_claim_data) )}
   claim_data$pk <- as.numeric(paste(claim_data$annee,claim_data$ident_personne,sep=""))
+  
+  # Check duplication in the loaded claims dataset. If exist, remove all duplications #
+  if (verbose == TRUE)
+  {print(paste0("Checking duplication in ", deparse(substitute(claim_data)), "..."))}
+  claim_data <- check_dup(claim_data, name_claim_data, verbose = verbose)
   
   # In preparation for the left outer join, some redundant variables in claim_data #
   # are removed #

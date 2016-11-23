@@ -7,9 +7,20 @@ check_dup <- function(DATASET, name, verbose = TRUE)
   dedup_size <- dim(unique(DATASET))[1]
   if (size == dedup_size)
   {
-    if (verbose == TRUE)
-    {print(paste0("No duplication in ", name, "!"))}
-    return(DATASET)
+    size_pk <- length(levels(as.factor(DATASET$pk)))
+    if (size_pk == size)
+    {
+      if (verbose == TRUE)
+      {print(paste0("No duplication in ", name, "!"))}
+      return(DATASET)
+    }
+    else
+    {
+      if (verbose == TRUE)
+      {print(paste0("No duplication in ", name, "!", " But ", size - size_pk
+                    , " duplicates with respect to pk!"))}
+      return(DATASET)
+    }
   }
   else if(size < dedup_size)
   {
@@ -44,9 +55,12 @@ detection_NA <- function(DATASET)
   {return(length(which(is.na(x))))}
   raw <- sapply(DATASET, f)
   if(sum(raw) == 0)
-  {return("None of the entry contains NA value!")}
+  {print("None of the entry contains NA value!")}
   else
-  {return(raw[which(raw != 0)])}
+  {
+    print(raw[which(raw != 0)])
+    return(raw[which(raw != 0)])
+  }
 }
 
 # A function that randomly samples the training dataset and testing dataset, a vector in the size of 

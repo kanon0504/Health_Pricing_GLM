@@ -63,7 +63,6 @@ data_preprocessing <- function(name_claim_data, verbose = TRUE, panel_ass = pane
   merged_data <- merge(panel_ass,claim_data, by = "pk", all.x = TRUE)
   
   ## Deal with the NA values in merged_data ##
-  
   # Detect all the columns that contain NA value and the number of them #
   detection_NA(merged_data)
   # Assign 0 to the frequency column for those who haven't had claims during exposure #
@@ -78,22 +77,28 @@ data_preprocessing <- function(name_claim_data, verbose = TRUE, panel_ass = pane
   # Detect all the columns that contain NA value and the number of them #
   detection_NA(merged_data)
   
+  # Delete primary key
+  merged_data$pk <- NULL
+  
+  # Delete variables that has numerous levels which have few information
+  merged_data$nationalite_2 <- NULL
+  merged_data$pays_expat_2 <- NULL
+  merged_data$pays <- NULL
+  merged_data$pays_2 <- NULL
+  merged_data$nb_adherents <- NULL
+  merged_data <- binary_to_factor(merged_data)
+  merged_data <- eliminate_negative(merged_data)
+  
+  # Return the processed clean dataset
+  return(merged_data)
 }
 
 
 
 
-# Delete primary key
-merged_data$pk <- NULL
 
-# Delete variables that has numerous levels which have few information
-merged_data$nationalite_2 <- NULL
-merged_data$pays_expat_2 <- NULL
-merged_data$pays <- NULL
-merged_data$pays_2 <- NULL
-merged_data$nb_adherents <- NULL
-merged_data <- binary_to_factor(merged_data)
-merged_data <- eliminate_negative(merged_data)
+
+
 
 
 

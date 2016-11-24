@@ -44,7 +44,7 @@ data_preprocessing <- function(name_claim_data, verbose = TRUE, panel_ass = pane
   
   # Check duplication in the loaded claims dataset. If exist, remove all duplications #
   if (verbose == TRUE)
-  {print(paste0("Checking duplication in ", deparse(substitute(claim_data)), "..."))}
+  {print(paste0("Checking duplication in ", name_claim_data, "..."))}
   claim_data <- check_dup(claim_data, name_claim_data, verbose = verbose)
   
   # In preparation for the left outer join, some redundant variables in claim_data #
@@ -105,11 +105,6 @@ data_preprocessing <- function(name_claim_data, verbose = TRUE, panel_ass = pane
 
 
 
-
-
-
-
-
 features <- c("autres_prothese", "protheses_auditives_pharmacie", "auxiliaire_medical", "kinesitherapie"
               , "bilan_de_sante", "cures_thermales", "dentaire_general", "implants", "orthodontie"
               , "protheses_dentaires", "parodontologie", "divers", "generaliste", "specialiste"
@@ -123,7 +118,10 @@ database <- list.files(path = '/Users/Kanon/Google Drive/AXA/data/MSH/')
 
 
 ############################ Data Pre-processing ############################ 
+name_claim_data <- database[13]
+merged_data <- data_preprocessing(name_claim_data, panel_ass = panel_ass)
 
+############################ Data Pre-processing ############################ 
 
 ############################ Generate training and testing data ############################ 
 

@@ -9,7 +9,9 @@ for(name_claim_data in database)
   #                                                      , name_claim_data))
   #claim_data$pk <- as.numeric(paste(claim_data$annee,claim_data$ident_personne,sep=""))
   #check_dup(claim_data, name, verbose = verbose)
-  detection_NA(eval(parse(text = name)))
+  print(name)
+  print(dim(eval(parse(text = name)))[1])
+  eliminate_negative(eval(parse(text = name)))
   rm(name)
 }
 
@@ -85,8 +87,14 @@ data_preprocessing <- function(name_claim_data, verbose = TRUE, panel_ass = pane
   merged_data$pays_expat_2 <- NULL
   merged_data$pays <- NULL
   merged_data$pays_2 <- NULL
+  
+  # Uniform variable which doesn't bring in any signal
   merged_data$nb_adherents <- NULL
+  
+  # Transform all numerical binary variables into factors
   merged_data <- binary_to_factor(merged_data)
+  
+  # Check the targets, negative values are listed and eliminated
   merged_data <- eliminate_negative(merged_data)
   
   # Return the processed clean dataset

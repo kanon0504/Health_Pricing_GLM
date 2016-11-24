@@ -164,7 +164,6 @@ binary_to_factor <- function(DATASET)
 # A function that detects negative responding values in a dataset
 # As negative values are not allowed for the 'Poisson' family
 # Those entries must be eliminated
-
 eliminate_negative <- function(DATASET, verbose = TRUE)
 {
   size_o <- dim(DATASET)[1]

@@ -58,6 +58,7 @@ detection_NA <- function(DATASET)
   {print("None of the entry contains NA value!")}
   else
   {
+    print("NA values detected:")
     print(raw[which(raw != 0)])
     return(raw[which(raw != 0)])
   }

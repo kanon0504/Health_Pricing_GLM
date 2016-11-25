@@ -36,7 +36,7 @@ merged_data <- data_preprocessing(name_claim_data, panel_ass = panel_ass)
 
 ############################ Generate training and testing data ############################ 
 
-returnlist <- random_split(merged_data)
+returnlist <- random_split(merged_data, method = "pseudo")
 tr <- returnlist$train.set # training dataset
 te <- returnlist$test.set # testing dataset
 rm(returnlist)
@@ -44,7 +44,7 @@ rm(returnlist)
 # Create a formula object for fitting a glm model as the baseline
 xnames <- names(tr)
 to_remove <- c("presence", "somme_quantite", "ident_police", "ident_famille", "IDENT_CONV"
-               , "pointeur_origine", "date_sortie", "ident_personne")
+               , "pointeur_origine", "date_sortie", "ident_personne", "somme_frais", "categorie")
 xnames <- setdiff(xnames, to_remove)
 fmla <- as.formula(paste("tr$somme_quantite ~ ",paste(xnames,collapse = '+')))
 

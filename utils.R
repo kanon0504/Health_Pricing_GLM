@@ -1,5 +1,25 @@
 ############################ Functions and tests ############################ 
 
+# A function enables to check weather two datasets possess equivalent levels
+check_levels <- function(tr,te)
+{
+  tr_f <- tr[,which(sapply(tr,is.factor))]
+  te_f <- te[,which(sapply(te,is.factor))]
+  names <- names(tr_f)
+  for (name in names)
+  {
+    tr_levels <- levels(tr_f[,name])
+    te_levels <- levels(te_f[,name])
+    if (setequal(tr_levels,te_levels))
+    {print(paste0("Levels are equivalent in factor ",name))}
+    else
+    {
+        re_te <- setdiff(te_levels, tr_levels)
+        print(paste0(re_te, " in ", name, "new level in testing dataset!"))
+    }
+  }
+}
+
 # A function that loads in polices and claims dataset then performs merging and selection
 data_preprocessing <- function(name_claim_data, verbose = TRUE, panel_ass = panel_ass)
 {
@@ -206,7 +226,7 @@ random_split <- function(dt, train_portion = 0.8, method = 'omit')
     train.set <- train.set[complete.cases(train.set),]
     test.set <- dt[test.index,]
     test.set <- test.set[complete.cases(test.set),]
-    returnlist <- list(train.set,test.set)
+    returnlist <- list('train.set' = train.set,'test.set' = test.set)
     return(returnlist)
   }
   

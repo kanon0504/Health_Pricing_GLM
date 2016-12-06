@@ -45,20 +45,26 @@ rm(returnlist)
 xnames <- names(tr)
 to_remove <- c("presence", "somme_quantite", "ident_police", "ident_famille", "IDENT_CONV"
                , "pointeur_origine", "date_sortie", "ident_personne", "somme_frais", "categorie")
-xnames <- setdiff(xnames, to_remove)
+#xnames <- setdiff(xnames, to_remove)
+xnames <- c("Generaliste", "type_assure", "sexe", "age", "annee")
 fmla <- as.formula(paste("tr$somme_quantite ~ ",paste(xnames,collapse = '+')))
 
 
-glm_model <- glm(fmla, family = poisson(link = log), offset = offset(tr$presence), data = tr)
+glm_model <- glm(fmla, offset(tr$presence), family = poisson(link = log), data = tr)
 ############################ Generate training and testing data ############################ 
 
 
 ############################ Testing of glm_model model ############################ 
 
-prediction <- predict.glm(glm_model, newdata = te[,xnames], type = "response")
+prediction <- predict(object = glm_model, newdata = te[,xnames], type = "response")
 
+
+  
 kpi <- kpi_gini(predrisk = prediction, truerisk = te$somme_quantite
                 , exposure = te$presence, significance = 6)
 
 ############################ Testing of glm_model model ############################ 
+
+
+
 

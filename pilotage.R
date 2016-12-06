@@ -29,14 +29,15 @@ database <- list.files(path = '/Users/Kanon/Google Drive/AXA/data/MSH/')
 database <- database[-1]
 
 ############################ Data Pre-processing ############################ 
+panel_ass <- sas7bdat::read.sas7bdat("/Users/Kanon/Google Drive/AXA/data/MSH/exposure/panel_ass.sas7bdat")
 name_claim_data <- database[13]
 merged_data <- data_preprocessing(name_claim_data, panel_ass = panel_ass)
-
+merged_data$annee <- as.factor(merged_data$annee)
 ############################ Data Pre-processing ############################ 
 
 ############################ Generate training and testing data ############################ 
 
-returnlist <- random_split(merged_data, method = "pseudo")
+returnlist <- random_split(merged_data)
 tr <- returnlist$train.set # training dataset
 te <- returnlist$test.set # testing dataset
 rm(returnlist)
@@ -46,7 +47,7 @@ xnames <- names(tr)
 to_remove <- c("presence", "somme_quantite", "ident_police", "ident_famille", "IDENT_CONV"
                , "pointeur_origine", "date_sortie", "ident_personne", "somme_frais", "categorie")
 #xnames <- setdiff(xnames, to_remove)
-xnames <- c("Generaliste", "type_assure", "sexe", "age", "annee")
+xnames <- c("type_assure", "sexe","annee","categorie","Generaliste")
 fmla <- as.formula(paste("tr$somme_quantite ~ ",paste(xnames,collapse = '+')))
 
 
@@ -57,14 +58,12 @@ glm_model <- glm(fmla, offset(tr$presence), family = poisson(link = log), data =
 ############################ Testing of glm_model model ############################ 
 
 prediction <- predict(object = glm_model, newdata = te[,xnames], type = "response")
-
-
   
 kpi <- kpi_gini(predrisk = prediction, truerisk = te$somme_quantite
                 , exposure = te$presence, significance = 6)
-
+print(kpi)
 ############################ Testing of glm_model model ############################ 
 
-
+merged_data[sexe != 'I',][type_assure != "E", .(freq_mean= mean(somme_quantite), age_m = mean(age)), by = c("annee","sexe")]
 
 

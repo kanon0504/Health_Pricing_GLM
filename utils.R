@@ -1,5 +1,26 @@
 ############################ Functions and tests ############################ 
 
+# plot
+plot_claim <- function(name_claim, panel_ass)
+{
+  merged_data <- data_preprocessing(name_claim, panel_ass = panel_ass)
+  merged_data <- data.table::data.table(merged_data)
+  name <- strsplit(name_claim, split = "_", fixed = T)[[1]][2]
+  
+  plot_data <- merged_data[sexe != 'I', .(frais_par_tete = mean(somme_frais),
+                                          freq = mean(somme_quantite),
+                                          cout = sum(somme_frais)/sum(somme_quantite)),
+                           by = "annee"]
+  freq_plot <- ggplot(plot_data, aes(x = annee, y = freq)) + ylab(paste0(name,"_freq")) + 
+    geom_point() + geom_line()
+  cout_plot <- ggplot(plot_data, aes(x = annee, y = cout)) + ylab(paste0(name,"_cout")) + 
+    geom_point() + geom_line()
+  par_tete_plot <- ggplot(plot_data, aes(x = annee, y = frais_par_tete)) + 
+    ylab(paste0(name,"_frais_par_tete")) + geom_point() + geom_line()
+  returnlist <- list("freq_plot" = freq_plot, "cout_plot" = cout_plot, "par_tete_plot" = par_tete_plot)
+  return(returnlist)
+}
+
 # A function enables to check weather two datasets possess equivalent levels
 check_levels <- function(tr,te)
 {

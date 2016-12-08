@@ -27,11 +27,16 @@ features <- c("autres_prothese", "protheses_auditives_pharmacie", "auxiliaire_me
 database <- list.files(path = '/Users/Kanon/Google Drive/AXA/data/MSH/')
 # remove file exposure
 database <- database[-1]
+generaliste <- "panel_generaliste_decompressed.sas7bdat"
+specialiste <- "panel_specialiste_decompressed.sas7bdat"
+pharmacie <- "panel_pharmacie_decompressed.sas7bdat"
+
 
 ############################ Data Pre-processing ############################ 
 panel_ass <- sas7bdat::read.sas7bdat("/Users/Kanon/Google Drive/AXA/data/MSH/exposure/panel_ass.sas7bdat")
 name_claim_data <- database[13]
-merged_data <- data_preprocessing(name_claim_data, panel_ass = panel_ass)
+merged_data <- data_preprocessing(pharmacie, panel_ass = panel_ass)
+merged_data <- data.table::data.table(merged_data)
 merged_data$annee <- as.factor(merged_data$annee)
 ############################ Data Pre-processing ############################ 
 

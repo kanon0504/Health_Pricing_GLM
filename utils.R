@@ -17,8 +17,15 @@ plot_claim <- function(name_claim, panel_ass)
     geom_point() + geom_line()
   par_tete_plot <- ggplot(plot_data, aes(x = annee, y = frais_par_tete)) + 
     ylab(paste0(name,"_frais_par_tete")) + geom_point() + geom_line()
-  returnlist <- list("freq_plot" = freq_plot, "cout_plot" = cout_plot, "par_tete_plot" = par_tete_plot)
-  return(returnlist)
+  png(filename = paste0(name,"_freq.png"))
+  plot(freq_plot)
+  dev.off()
+  png(filename = paste0(name,"_cout.png"))
+  plot(cout_plot)
+  dev.off()
+  png(filename = paste0(name,"_frais_par_tete.png"))
+  plot(par_tete_plot)
+  dev.off()
 }
 
 # A function enables to check weather two datasets possess equivalent levels

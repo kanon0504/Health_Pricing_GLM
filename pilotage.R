@@ -71,4 +71,7 @@ print(kpi)
 
 merged_data[sexe != 'I',][type_assure != "E", .(freq_mean= mean(somme_quantite), age_m = mean(age)), by = c("annee","sexe")]
 
-
+for (name_claim in database)
+{
+  plot_claim(name_claim, panel_ass)
+}

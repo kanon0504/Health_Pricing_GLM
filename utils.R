@@ -1,5 +1,25 @@
 ############################ Functions and tests ############################ 
 
+
+# save data
+save_data <- function(name_claim, panel_ass)
+{
+  merged_data <- data_preprocessing(name_claim, panel_ass = panel_ass)
+  merged_data <- data.table::data.table(merged_data)
+  name <- strsplit(name_claim, split = "_", fixed = T)[[1]][2]
+  plot_data <- merged_data[sexe != 'I', .(frais_par_tete = mean(somme_frais),
+                                          freq = mean(somme_quantite),
+                                          cout = sum(somme_frais)/sum(somme_quantite),
+                                          sum_claim = sum(somme_quantite)),
+                           by = "annee"]
+  plot_data$nb_obv = merged_data[sexe != 'I'][somme_quantite != 0 ,
+                                             .(nb_obv = .N), by = "annee"]$nb_obv
+  names(plot_data) <- c("annee", paste0(name,"_frais_par_tete"), paste0(name, "_freq"),
+                        paste0(name, "_cout"), paste0(name, "_sum_claim"),
+                        paste0(name, "_nb_observation"))
+  write.csv(plot_data, paste0(name, ".csv"))
+}
+
 # plot
 plot_claim <- function(name_claim, panel_ass)
 {
@@ -522,7 +542,7 @@ calc_gini <- function(x, y = NULL, significance = NULL)
     x = temp[[1]]
     y = temp[[2]]
   }
-  gini = (trapz(x, y)-0.5)/0.5
+  gini = (pracma::trapz(x, y)-0.5)/0.5
   if(is.null(significance))
     return(gini)
   else

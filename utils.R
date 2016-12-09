@@ -672,4 +672,500 @@ check_exposure_gain <- function(predrisk, exposure)
   return(exposure)
   }
 
+
+#' Group levels
+#'
+#' Replace old levels in a factor with the new grouped levels
+#'
+#' Steps:
+#'
+#' 1. Create a data table that contains all the reduced features extracted from nfeature_creation
+#' (all numerical features) in order to cluster on the levels of group_factor
+#'
+#' 2. Merge the second data table that contains all the reduced features extracted from cfeature_creation
+#' (all categorical features) with the first data table
+#'
+#' 3. Given the training data set and its labels, a vector with all the labels with thier clustered tag
+#' is returned
+#'
+#' @param dt [data.table] Input data table, ready to be modolized
+#' @param group_factor [character]  a character that indicates the factor on whose levels
+#' we want to perform clustering
+#' @param loose_ends [character] features that are in numeric or integer format however
+#' should be processed as factors
+#' @param frequency [character] a string of the name of the frequency(predictive target)
+#' @param exposure [character] default set to 'POL_Exp', a string of the name of the exposure
+#' @param treecut [integer] default set to 5, the maximum number of non-leaf nodes selected
+#' from the regression tree
+#' @param cp [numeric] default set to 0.01, the complexity parameter in regression tree,
+#' which introduce the penalty of the size of the tree
+#' @param col [numeric] default set to 0.99, any correlation above this quantity between
+#' two vectors, one of the vector will be removed
+#' @param gbm.rank [logical] A logical object to determine whether the importance ranking realized
+#' by gbm algorithm will be performed
+#' @param nbclusters [integer] The number of clusters returned from hierarchical clustering
+#' @param bulk [numeric] The percentage of variance to retain in Singular Value Decomposition
+#' @param pc [integer] The number of principle components retained
+#' @param verbose [logical] if TRUE, group_levels will print out progress and performance indication.
+#' If this option is left unspecified for gbm.more then it uses verbose from object.
+#'
+#' @return return_column [factor] The grouped factor with new levels
+#' @export
+
+
+group_levels <- function(dt, group_factor, loose_ends = NULL, frequency, exposure, verbose = T
+                         , treecut = 5, cp = 0.01, col = 0.98, gbm.rank = T, nbclusters = 30
+                         , bulk = 0.6, pc = 3)
+{
+  ##################################### split the data table into two parts ####################################
+  # Specify all the categorical and numerical variables
+  # Convert numerical variables into factors (in loose_ends)
+  # Return list contains three data table: Categorical Variables, Numerical Variables
+  # and Grouping Factor
+  split <- function(dt, group_factor, loose_ends)
+  {
+    varchars = names(dt)[which(sapply(dt,is.character))]
+    if (!is.null(loose_ends))
+      varchars <- append(varchars,loose_ends)
+    for (j in varchars) data.table::set(dt,j=j,value = as.factor(dt[[j]]))
+    integers <- names(dt)[which(sapply(dt,is.integer))]
+    for (j in integers) data.table::set(dt,j=j,value = as.numeric(dt[[j]]))
+    # Catagorical variables
+    c_name = names(dt)[which(sapply(dt,is.factor))]
+    c_variables = dt[,c_name, with = F]
+    # Numeric and integer variables
+    n_name = names(dt)[which(!sapply(dt,is.factor))]
+    n_variables = dt[,n_name, with = F]
+    group_factor <- c_variables[,group_factor,with = F]
+    return_list <- list('c_variables' = c_variables,'n_variables' = n_variables
+                        ,'group_factor' = group_factor)
+    return(return_list)
+  }
+  ##############################################################################################################
+  
+  
+  
+  ######################################## Numerical features creation #########################################
+  # Generate statistical features from Numerical variables
+  nfeature_creation <- function(column,group_factor,index)
+  {
+    name = names(column)
+    # create data table object for the prepration of training set
+    column[[names(group_factor)]] <- group_factor[[names(group_factor)]]
+    column <- as.data.table(column)
+    dt = column[,.(mean(get(name),na.rm=T)
+                   ,sd(get(name),na.rm=T)
+                   ,skewness(get(name),na.rm=T)
+                   ,kurtosis(get(name),na.rm=T)
+                   ,quantile(get(name),.01,na.rm=T)
+                   ,quantile(get(name),.1,na.rm=T)
+                   ,quantile(get(name),.25,na.rm=T)
+                   ,quantile(get(name),.5,na.rm=T)
+                   ,quantile(get(name),.75,na.rm=T)
+                   ,quantile(get(name),.9,na.rm=T)
+                   ,quantile(get(name),.99,na.rm=T)
+                   ,length(unique(get(name)))/length(get(name))
+                   ,as.double(median(get(name)))
+                   ,as.double(mad(get(name),na.rm=T))
+                   ,as.double(min(get(name),na.rm=T))
+                   ,as.double(max(get(name),na.rm=T))
+                   ,sd(get(name),na.rm=T)/sqrt(length(get(name)))
+                   ,.N)
+                ,by = group_factor]
+    
+    names(dt) <- c(names(group_factor)
+                   ,paste0(index,'m')
+                   ,paste0(index,'sd')
+                   ,paste0(index,'sk')
+                   ,paste0(index,'kt')
+                   ,paste0(index,'q01')
+                   ,paste0(index,'q10')
+                   ,paste0(index,'q25')
+                   ,paste0(index,'q50')
+                   ,paste0(index,'q75')
+                   ,paste0(index,'q90')
+                   ,paste0(index,'q99')
+                   ,paste0(index,'uq')
+                   ,paste0(index,'med')
+                   ,paste0(index,'mad')
+                   ,paste0(index,'min')
+                   ,paste0(index,'max')
+                   ,paste0(index,'sem')
+                   ,paste0(index,'N'))
+    
+    return(dt)
+  }
+  ##############################################################################################################
+  
+  
+  
+  ####################################### Categorical features creation ########################################
+  cfeature_creation <- function(column,group_factor,index)
+  {
+    # Shannon entropy calculation
+    entropy <- function(p)
+    {
+      # if (min(p) < 0 || sum(p) <= 0)
+      #  return(NA)
+      p.norm <- p[p>0]/sum(p)
+      -sum(log2(p.norm)*p.norm)
+    }
+    # Replace all the NA by zero in a data frame
+    f_dowle <- function(dt)
+    {
+      for (j in names(dt))
+        set(dt,which(is.na(dt[[j]])),j,0)
+      for (j in seq_len(ncol(dt)))
+        set(dt,which(is.na(dt[[j]])),j,0)
+    }
+    
+    # Replace all the empty column name by V1, V2, ...
+    r_empty <- function(cols)
+    {
+      ncols <- c()
+      index <- 1
+      for (name in cols)
+      {
+        if (name == '')
+        {
+          ncols <- c(ncols,paste0('V',index))
+          index <- index + 1
+        }
+        else
+          ncols <- c(ncols,name)
+      }
+      return(ncols)
+    }
+    temp <- as.data.table(c(column,group_factor))
+    dt <- table(group_factor[[names(group_factor)]],column[[names(column)]])
+    dt <- as.data.frame.matrix(dt)
+    # Assign column names
+    cols <- levels(column[[names(column)]])
+    # Replace empty column names by 'V1', 'V2', etc...
+    ncols <- paste0(index,r_empty(cols))
+    names(dt) <- ncols
+    # Normalize the data frame row-wise
+    dt <- sweep(dt, 1, rowSums(dt), FUN="/")
+    # Assign the standard deviation of the distribution to the column standd
+    standd <- c()
+    for (i in 1:dim(dt)[1]) {standd <- c(standd,sd(dt[i,]))}
+    # Assign the shannon entropy of the distribution to the column sentropy
+    sentropy <- c()
+    for (i in 1:dim(dt)[1])
+    {
+      sentropy <- c(sentropy,entropy(dt[i,]))
+    }
+    dt[,paste0(index,'sd')] <- standd
+    dt[,paste0(index,'entropy')] <- sentropy
+    dt <- as.data.table(dt)
+    return(dt)
+  }
+  ##############################################################################################################
+  
+  
+  
+  ############################################ feature selection ###############################################
+  feature_selection <- function(sdt,treecut,cp)
+  {
+    mycontrol <- rpart.control(cp = cp, xval = 10)
+    tree = rpart(formula = 100*(sdt$tgt-mean(sdt$tgt))~.
+                 ,data = sdt,control = mycontrol)
+    split = as.character(unique(tree$frame$var))
+    split = split[split != '<leaf>']
+    split = split[c(1:treecut)]
+    split <- split[!is.na(split)]
+    temp = sdt[,split,with=F]
+    #  temp[['VEH_Brand']] = sdt$VEH_Brand
+    #  index = c(1:length(sdt$tgt))
+    #  temp[['index']] = index
+    return(temp)
+  }
+  ##############################################################################################################
+  
+  
+  
+  ########################################### Training set creation ############################################
+  get_training_set <- function(n_variables, c_variables, group_factor, frequency, exposure = exposure
+                               , treecut=treecut, cp = cp, col = col, gbm.rank = gbm.rank, verbose = verbose)
+  {
+    ### Remove strong correlation
+    remove.col <- function(combined_features,group_factor, col, verbose)
+    {
+      cor <- cor(combined_features[,-names(group_factor),with = F])
+      cor[upper.tri(cor)] <- 0
+      diag(cor) <- 0
+      new_data <- !apply(cor,2,function(x){any(x>col)})
+      new_data <- c(TRUE,new_data)
+      combined_features <- combined_features[,new_data,with = F]
+      if (verbose == T)
+      {
+        return_list = paste('Features left after removing high correlations among them are: ')
+        cat(return_list,'\n',names(combined_features[,-names(group_factor),with =F]),'\n')
+      }
+      return(combined_features)
+    }
+    ### normalize function
+    # Normalize with respect to the importance that returned by gbm algorithm
+    normalize <- function(combined_features, tgt, group_factor, n.trees, verbose)
+    {
+      combined_features[['tgt']] = tgt[['tgt']]
+      combined_features[[names(group_factor)]] <- NULL
+      mygbm <- gbm(formula = combined_features$tgt ~ ., data = combined_features, interaction.depth = 3
+                   , distribution = 'gaussian', shrinkage = 0.001, bag.fraction = 0.5, n.trees = 100, 
+                   verbose = verbose)
+      if (verbose == T)
+      {
+        print(summary(mygbm))
+      }
+      combined_features$tgt <- NULL
+      # Get the ordered features(by its importance) and the importance vector
+      features <- summary(mygbm)[,1]
+      importance <- summary(mygbm)[,2]
+      # Normalize coloum-wise the data set with respect to its importance
+      len <- length(combined_features)
+      for (i in 1:len)
+      {
+        column <- combined_features[[features[i]]]
+        combined_features[[features[i]]] <- ((column-mean(column))/sd(column))
+      }
+      # Remove all zero columns
+      combined_features <- combined_features[,colSums(combined_features != 0) > 0,with = F]
+      if (verbose == T)
+      {
+        returnlist <- ' Features left after removing all zero columns are: '
+        len <- length(names(combined_features))
+        cat(len, return_list,'\n', names(combined_features),'\n')
+      }
+      return(combined_features)
+    }
+    # Given one group_factor, the target of all the regression trees that we would run on
+    # each numerical features is the same.
+    # Prepare the target for the regression tree
+    target <- n_variables[,c(frequency,exposure),with=F]
+    names(target) <- c('frequency','exposure')
+    target[[names(group_factor)]] <- group_factor[[names(group_factor)]]
+    tgt = target[,sum(get('frequency'),na.rm=T)/sum(get('exposure'),na.rm=T),by=group_factor]
+    #target$tgt <- target$frequency*target$exposure
+    #tgt = target[,sum(tgt,na.rm = T),by=group_factor]
+    names(tgt) <- c(names(group_factor),'tgt')
+    tgt[[names(group_factor)]] = NULL
+    
+    # Remove the target from the generating matrix
+    n_variables[[frequency]] = NULL
+    n_variables[[exposure]] = NULL
+    
+    # Initialize the training data for final grouping
+    index = 1
+    combined_features = group_factor[,.('i'=1),by = names(group_factor)]
+    combined_features[['i']] = NULL
+    names(combined_features) <- names(group_factor)
+    
+    for (column in n_variables)
+    {
+      column <- as.data.table(column)
+      
+      # create data table s_table by merging column and bonus
+      # s_table contains exposure, risk frequency and one feature from n_variables
+      # at each iteration
+      #    s_table <- bonus
+      #    s_table[[names(column)]] = column[[names(column)]]
+      # data table with features extracted from one numeric feature
+      # 19 features ready to be trimmed
+      sdt = nfeature_creation(column = column,group_factor=group_factor, index = index)
+      sdt[['tgt']] = tgt[['tgt']]
+      sdt[[names(group_factor)]] = NULL
+      # pass dt to the function nfeature_reduction
+      # returns the reduced features considered to be correlated with risk
+      dt = feature_selection(sdt,treecut,cp = cp)
+      if (length(dt) != 0)
+      {
+        dt[[names(group_factor)]] <- combined_features[[names(group_factor)]]
+        # show the features selected at each stage
+        if (verbose == T)
+        {
+          return_list = paste('Features selected from the ', names(n_variables)[index],' variable: ')
+          len <- length(dt) - 1
+          cat(len,return_list,c(names(dt))[!c(names(dt)) %in% names(group_factor)],'.','\n')
+        }
+        # merge the features selected into the training data for final grouping 'combined_features'
+        combined_features <- merge(combined_features,dt,by = names(group_factor),sort = F)
+      }
+      else
+      {
+        if (verbose == T)
+        {
+          return_list = paste('No feature was selected from the ',names(n_variables)[index],' variable.')
+          cat(return_list,'\n')
+        }
+      }
+      index <- index + 1
+    }
+    name_count <- 1
+    index <- 1
+    cname <- names(c_variables)
+    for (column in c_variables)
+    {
+      column <- as.data.table(column)
+      names(column) <- cname[name_count]
+      name_count <- name_count + 1
+      if (names(column) != names(group_factor))
+      {
+        sdt = cfeature_creation(column = column,group_factor=group_factor, index = index)
+        sdt[['tgt']] = tgt[['tgt']]
+        # pass dt to the function nfeature_reduction
+        # returns the reduced features considered to be correlated with risk
+        dt = feature_selection(sdt,treecut,cp = cp)
+        if (length(dt) != 0)
+        {
+          dt[[names(group_factor)]] <- combined_features[[names(group_factor)]]
+          # show the features selected at each stage
+          if (verbose == T)
+          {
+            return_list = paste('Features selected from the ', names(column),' variable: ')
+            len <- length(dt) - 1
+            cat(len,return_list,c(names(dt))[!c(names(dt)) %in% names(group_factor)],'.','\n')
+          }
+          # merge the features selected into the training data for final grouping 'combined_features'
+          combined_features <- merge(combined_features,dt,by = names(group_factor),sort = F)
+        }
+        else
+        {
+          if (verbose == T)
+          {
+            return_list = paste('No feature was selected from the ',names(c_variables)[index],' variable.')
+            cat(return_list,'\n')
+          }
+        }
+        index <- index + 1
+      }
+    }
+    # Remove strong correlations from combined_features
+    combined_features <- remove.col(combined_features, group_factor, col, verbose = verbose)
+    # Normalize the data table combined_features for the sake of builiding distance
+    # (or similarity) matrixs
+    if (gbm.rank)  {combined_features <- normalize(combined_features, verbose = verbose
+                                                   , tgt, group_factor, 3*length(combined_features))}
+    combined_features[[names(group_factor)]] <- group_factor[,.('i'=1)
+                                                             ,by = names(group_factor)][[names(group_factor)]]
+    # Return combined_features as the final training dataset
+    return(combined_features)
+  }
+  ###############################################################################################################
+  
+  
+  
+  ########################################### Clustering function ###############################################
+  clustering <- function(combined_features, group_factor, method = 'hclust', nbclusters = nbclusters
+                         , bulk = bulk, pc = pc, verbose = verbose)
+  {
+    #combined_features = preProcess(combined_features,method=c('BoxCox','center','scale','pca'))
+    # Convert combined_features into data frame thus add row names as the VEH_Brand
+    combined_features = data.frame(combined_features, row.names=
+                                     as.vector(combined_features[[names(group_factor)]]))
+    principal.component <- function(pca, bulk)
+    {
+      sdev <- pca$sdev
+      len <- length(sdev)
+      s <- sum(sdev)
+      for (i in 1:len)
+      {
+        if (sum(sdev[1:i])/s >= bulk)
+        {
+          return(i)
+          break
+        }
+      }
+    }
+    # Hierarchical clustering much depends on the distance matrix which could be easily
+    # dominated by the biggiest number in the vector
+    if (method == 'hclust')
+    {
+      dup <- combined_features
+      dup[names(group_factor)] <- NULL
+      pca <- prcomp(dup,center = T, scale. = T)
+      index <- principal.component(pca, bulk = bulk)
+      appr <- pca$x[,c(1:min(pc,index))]
+      # Create the distance object from combined_features except for VEH_Brand for clustering
+      dist <- dist(appr)
+      # Apply the hierarical clustering
+      hc <- hclust(dist, method = 'complete')
+      # Choose the number of times of grouping
+      clusterCut <- cutree(hc, nbclusters)
+      #table(clusterCut,combined_features$get(names(group_factor)))
+      if (verbose == T)
+      {
+        for (i in c(1:nbclusters))
+        {
+          temp = as.vector(combined_features[[names(group_factor)]])[unname(clusterCut) == i]
+          cat('The ', i, suffix(i),'cluster contains',length(temp),'element(s)','\n')
+        }
+      }
+      return(clusterCut)
+    }
+  }
+  ###############################################################################################################
+  
+  
+  
+  ################################################ Suffix function ##############################################
+  suffix <- function(index)
+  {
+    if (index%%10 == 1)
+    {
+      if (index%%100 == 11)
+        suffix = 'th'
+      else
+        suffix = 'st'
+    }
+    else if (index%%10 == 2)
+    {
+      if (index%%100 == 12)
+        suffix = 'th'
+      else
+        suffix = 'nd'
+    }
+    else if (index%%10 == 3)
+    {
+      if (index%%100 == 13)
+        suffix = 'th'
+      else
+        suffix = 'rd'
+    }
+    else
+      suffix = 'th'
+    return(suffix)
+  }
+  ###############################################################################################################
+  
+  
+  
+  ################################################ Replace levels ###############################################
+  group_factors <- function(clustercut, column)
+  {
+    new.levels <- c()
+    for (i in levels(column))
+    {
+      new.level <- paste0('level',unname(clustercut[i]))
+      new.levels <- append(new.levels,new.level)
+    }
+    levels(column) <- new.levels
+    return(column)
+  }
+  ###############################################################################################################
+  
+  return_list <- split(dt, group_factor = group_factor, loose_ends = loose_ends)
+  n_variables <- return_list$n_variables
+  c_variables <- return_list$c_variables
+  group_factor <- return_list$group_factor
+  combined_features <- get_training_set(n_variables = n_variables, c_variables = c_variables
+                                        , group_factor = group_factor, frequency = frequency
+                                        , exposure = exposure, treecut = treecut, cp = cp
+                                        , col = col, gbm.rank = gbm.rank, verbose = verbose)
+  clustercut = clustering(combined_features,group_factor,nbclusters = nbclusters, bulk = bulk
+                          ,verbose = verbose, pc = pc)
+  return_column <- group_factors(clustercut, group_factor[[names(group_factor)]])
+  
+  return(return_column)
+}
+
 ############################ Functions and tests ############################ 

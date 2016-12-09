@@ -52,7 +52,7 @@ xnames <- names(tr)
 to_remove <- c("presence", "somme_quantite", "ident_police", "ident_famille", "IDENT_CONV"
                , "pointeur_origine", "date_sortie", "ident_personne", "somme_frais", "categorie")
 #xnames <- setdiff(xnames, to_remove)
-xnames <- c("type_assure", "sexe","annee","categorie","Generaliste")
+xnames <- c("type_assure", "sexe","annee","categorie")
 fmla <- as.formula(paste("tr$somme_quantite ~ ",paste(xnames,collapse = '+')))
 
 
@@ -73,5 +73,6 @@ merged_data[sexe != 'I',][type_assure != "E", .(freq_mean= mean(somme_quantite),
 
 for (name_claim in database)
 {
-  plot_claim(name_claim, panel_ass)
+  #plot_claim(name_claim, panel_ass)
+  save_data(name_claim, panel_ass)
 }

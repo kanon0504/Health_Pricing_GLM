@@ -1,14 +1,45 @@
 ############################ Functions and tests ############################ 
 
 
+# check distribution
+check_dist <- function(data, verbose = TRUE)
+{
+  #data <- eliminate_negative(data, verbose = FALSE)
+  name <- deparse(substitute(data))
+  mean <- mean(data$somme_quantite)
+  var <- var(data$somme_quantite)
+  logmean <- mean(log(data$somme_quantite + 1))
+  logvar <- var(log(data$somme_quantite + 1))
+  if (verbose == TRUE)
+  {
+    print(paste0("the mean frequency of ",name, " is ",mean))
+    print(paste0("the variance of frequency of ",name, " is ",var))
+    print(paste0("the log mean frequency of ",name, " is ",logmean))
+    print(paste0("the log variance of frequency of ",name, " is ",logvar))
+  }
+  return(c(mean,var,logmean,logvar))
+}
+  
+# get name
+get_name <- function(name_claim_data)
+{
+  name <- strsplit(name_claim_data, split = "_", fixed = T)[[1]]
+  name <- name[-length(name)]
+  name <- name[-1]
+  if (length(name) > 1)
+  {name <- paste(name, collapse = '_')}
+  return(name)
+}
+  
+  
 # save data
 save_data <- function(name_claim, panel_ass)
 {
   merged_data <- data_preprocessing(name_claim, panel_ass = panel_ass)
   merged_data <- data.table::data.table(merged_data)
-  name <- strsplit(name_claim, split = "_", fixed = T)[[1]][2]
-  plot_data <- merged_data[sexe != 'I', .(frais_par_tete = mean(somme_frais),
-                                          freq = mean(somme_quantite),
+  name <- get_name(name_claim)
+  plot_data <- merged_data[sexe != 'I', .(frais_par_tete = sum(somme_frais)/sum(presence),
+                                          freq = sum(somme_quantite)/sum(presence),
                                           cout = sum(somme_frais)/sum(somme_quantite),
                                           sum_claim = sum(somme_quantite)),
                            by = "annee"]
@@ -25,7 +56,7 @@ plot_claim <- function(name_claim, panel_ass)
 {
   merged_data <- data_preprocessing(name_claim, panel_ass = panel_ass)
   merged_data <- data.table::data.table(merged_data)
-  name <- strsplit(name_claim, split = "_", fixed = T)[[1]][2]
+  name <- get_name(name_claim)
   
   plot_data <- merged_data[sexe != 'I', .(frais_par_tete = mean(somme_frais),
                                           freq = mean(somme_quantite),
@@ -71,12 +102,21 @@ check_levels <- function(tr,te)
 # A function that loads in polices and claims dataset then performs merging and selection
 data_preprocessing <- function(name_claim_data, verbose = TRUE, panel_ass = panel_ass)
 {
+  name <- get_name(name_claim_data)
   # Load datasets on Macbook Pro #
-  claim_data <- sas7bdat::read.sas7bdat(paste0("/Users/Kanon/Google Drive/AXA/data/MSH/"
-                                               , name_claim_data))
+  if (!exists(name, envir = globalenv()))
+  {
+    if (verbose == T)
+    {print(paste0("loading ",name))}
+    claim_data <- sas7bdat::read.sas7bdat(paste0("/Users/Kanon/Google Drive/AXA/data/MSH/"
+                                                 , name_claim_data))
+  }
+  else(claim_data <- eval(parse(text = name)))
+
   if (!exists("panel_ass", envir = globalenv()))
   {
-    print("Reading in panel_ass, please take a coffee... ")
+    if (verbose == T)
+    {print("Reading in panel_ass, please take a coffee... ")}
     panel_ass <- sas7bdat::read.sas7bdat("/Users/Kanon/Google Drive/AXA/data/MSH/exposure/panel_ass.sas7bdat")
   }
   
@@ -123,7 +163,8 @@ data_preprocessing <- function(name_claim_data, verbose = TRUE, panel_ass = pane
   
   ## Deal with the NA values in merged_data ##
   # Detect all the columns that contain NA value and the number of them #
-  detection_NA(merged_data)
+  if (verbose == TRUE)
+  {detection_NA(merged_data)}
   # Assign 0 to the frequency column for those who haven't had claims during exposure #
   merged_data$somme_quantite[is.na(merged_data$somme_quantite)] <- 0
   # Assign 0 to the cost column for those who haven't had claims during exposure #
@@ -134,7 +175,8 @@ data_preprocessing <- function(name_claim_data, verbose = TRUE, panel_ass = pane
   # Delete entries whose date_naissance(age at the same time) is NA(very few, 8 cases in panel_ass) #
   merged_data <- merged_data[-which(is.na(merged_data$age)),]
   # Detect all the columns that contain NA value and the number of them #
-  detection_NA(merged_data)
+  if (verbose == TRUE)
+  {detection_NA(merged_data)}
   
   # Delete primary key
   merged_data$pk <- NULL
@@ -149,10 +191,14 @@ data_preprocessing <- function(name_claim_data, verbose = TRUE, panel_ass = pane
   merged_data$nb_adherents <- NULL
   
   # Transform all numerical binary variables into factors
+  if (verbose == TRUE)
+  {print("Transfering binary variables into factor objects")}
   merged_data <- binary_to_factor(merged_data)
   
   # Check the targets, negative values are listed and eliminated
-  merged_data <- eliminate_negative(merged_data)
+  if (verbose == TRUE)
+  {print("Eliminate observations whose target is negative")}
+  merged_data <- eliminate_negative(merged_data, verbose = verbose)
   
   # Return the processed clean dataset
   return(merged_data)
@@ -310,7 +356,7 @@ random_split <- function(dt, train_portion = 0.8, method = 'omit')
 binary_to_factor <- function(DATASET)
 {
   class <- sapply(DATASET,class)
-  n_set <- names(DATASET)[which(class == 'numeric')]
+  n_set <- names(DATASET)[which(class != 'factor')]
   for(name in n_set)
   {
     levels <- unique(get(name,DATASET))

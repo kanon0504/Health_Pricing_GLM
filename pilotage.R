@@ -34,8 +34,17 @@ pharmacie <- "panel_pharmacie_decompressed.sas7bdat"
 
 ############################ Data Pre-processing ############################ 
 panel_ass <- sas7bdat::read.sas7bdat("/Users/Kanon/Google Drive/AXA/data/MSH/exposure/panel_ass.sas7bdat")
+for (name_claim_data in database)
+{
+  name <- get_name(name_claim_data)
+  print(paste0("reading ", name))
+  data <- sas7bdat::read.sas7bdat(paste0("/Users/Kanon/Google Drive/AXA/data/MSH/"
+                                    , name_claim_data))
+  assign(name, data)
+}
+
 name_claim_data <- database[13]
-merged_data <- data_preprocessing(pharmacie, panel_ass = panel_ass)
+merged_data <- data_preprocessing("panel_generaliste_decompressed.sas7bdat" , panel_ass = panel_ass)
 merged_data <- data.table::data.table(merged_data)
 merged_data$annee <- as.factor(merged_data$annee)
 ############################ Data Pre-processing ############################ 
@@ -71,8 +80,18 @@ print(kpi)
 
 merged_data[sexe != 'I',][type_assure != "E", .(freq_mean= mean(somme_quantite), age_m = mean(age)), by = c("annee","sexe")]
 
+mean_var <- data.frame(poste = c(1), mean = c(1), var = c(1), logmean = c(1), logvar = c(1))
+
 for (name_claim in database)
 {
-  #plot_claim(name_claim, panel_ass)
-  save_data(name_claim, panel_ass)
+  merged_data <- data_preprocessing(name_claim , panel_ass = panel_ass, verbose = FALSE)
+  temp <- check_dist(merged_data)
+  mean_var <- rbind(mean_var, c(get_name(name_claim), temp))
+  # setwd("/Users/Kanon/Documents/Health_Pricing_GLM/saved_plots//")
+  # plot_claim(name_claim, panel_ass)
+  # setwd("/Users/Kanon/Documents/Health_Pricing_GLM/saved_data/")
+  # save_data(name_claim, panel_ass)
 }
+
+
+

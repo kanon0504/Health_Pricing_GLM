@@ -131,7 +131,7 @@ check_levels <- function(tr,te)
 # A function that loads in polices and claims dataset then performs merging and selection
 data_preprocessing <- function(name_claim_data, verbose = TRUE, panel_ass = panel_ass)
 {
-  name <- name_claim_data
+  name <- strsplit(name_claim_data, split = ".", fixed = T)[[1]][1]
   # Load datasets on Macbook Pro #
   if (!exists(name, envir = globalenv()))
   {

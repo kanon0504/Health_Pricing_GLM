@@ -1,5 +1,34 @@
 ############################ Functions and tests ############################ 
 
+# for merging 
+merge_data <- function(namelist,merged_name)
+{
+  len <- length(namelist)
+  if (len > 1)
+  {
+    test <- eval(parse(text = namelist[1]))
+    for (i in 1:(len -1))
+    {
+      test <- rbind(test,eval(parse(text = namelist[i+1])))
+    }
+    test$pk <- as.character(paste(test$annee,test$ident_personne,test$presence,sep="_"))
+    test <- data.table::data.table(test)
+    merged_test <- test[,.( somme_frais = sum(somme_frais), somme_quantite = sum(somme_quantite)),by = pk]
+    print(sum(merged_test$somme_quantite) == sum(test$somme_quantite))
+    merged_test <- merged_test %>% separate(pk, c('annee_soin','ident_personne','presence'),'_')
+    setwd("/Users/Kanon/Google Drive/AXA/data/Merged_data")
+    merged_name <- paste0(substring(merged_name,2), ".csv")
+    write.csv(merged_test, file = merged_name)
+    return(merged_test)
+  }
+  else
+  {
+    unchanged <- eval(parse(text = namelist))
+    merged_name <- paste0(substring(merged_name,2), ".csv")
+    write.csv(unchanged, file = merged_name)
+    return(unchanged)
+  }
+}
 
 # check distribution
 check_dist <- function(data, verbose = TRUE)
@@ -102,13 +131,13 @@ check_levels <- function(tr,te)
 # A function that loads in polices and claims dataset then performs merging and selection
 data_preprocessing <- function(name_claim_data, verbose = TRUE, panel_ass = panel_ass)
 {
-  name <- get_name(name_claim_data)
+  name <- name_claim_data
   # Load datasets on Macbook Pro #
   if (!exists(name, envir = globalenv()))
   {
     if (verbose == T)
     {print(paste0("loading ",name))}
-    claim_data <- sas7bdat::read.sas7bdat(paste0("/Users/Kanon/Google Drive/AXA/data/MSH/"
+    claim_data <- sas7bdat::read.sas7bdat(paste0("/Users/Kanon/Google Drive/AXA/data/Merged_data"
                                                  , name_claim_data))
   }
   else(claim_data <- eval(parse(text = name)))

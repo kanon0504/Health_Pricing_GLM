@@ -25,11 +25,9 @@ features <- c("autres_prothese", "protheses_auditives_pharmacie", "auxiliaire_me
               , "psychiatrie", "vaccins", "traitement_de_la_fertilite", "ambulance_transport")
 
 database <- list.files(path = '/Users/Kanon/Google Drive/AXA/data/MSH/')
-# remove file exposure
-database <- database[-1]
-generaliste <- "panel_generaliste_decompressed.sas7bdat"
-specialiste <- "panel_specialiste_decompressed.sas7bdat"
-pharmacie <- "panel_pharmacie_decompressed.sas7bdat"
+
+setwd("/Users/Kanon/Google Drive/AXA/data/Merged_data")
+database <- list.files(path = '/Users/Kanon/Google Drive/AXA/data/Merged_data')
 
 
 ############################ Data Pre-processing ############################ 
@@ -93,54 +91,12 @@ for (name_claim in database)
 {
   merged_data <- data_preprocessing(name_claim , panel_ass = panel_ass, verbose = FALSE)
   temp <- check_dist(merged_data)
-  mean_var <- rbind(mean_var, c(get_name(name_claim), temp))
+  mean_var <- rbind(mean_var, c(strsplit(name_claim, split = ".", fixed = T)[[1]][1], temp))
   # setwd("/Users/Kanon/Documents/Health_Pricing_GLM/saved_plots//")
   # plot_claim(name_claim, panel_ass)
   # setwd("/Users/Kanon/Documents/Health_Pricing_GLM/saved_data/")
   # save_data(name_claim, panel_ass)
 }
-
-
-setwd("/Users/Kanon/Google Drive/AXA/data/Merged_data")
-database <- list.files(path = '/Users/Kanon/Google Drive/AXA/data/Merged_data')
-for (name_claim_data in database)
-{
-  name <- strsplit(name_claim_data, split = ".", fixed = T)[[1]][1]
-  print(paste0("reading ", name))
-  data <- read.csv(paste0("/Users/Kanon/Google Drive/AXA/data/Merged_data/"
-                                         , name_claim_data))
-  assign(name, data)
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

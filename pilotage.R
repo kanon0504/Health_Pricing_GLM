@@ -36,13 +36,13 @@ for (name_claim_data in database)
 {
   name <- get_name(name_claim_data)
   print(paste0("reading ", name))
-  data <- sas7bdat::read.sas7bdat(paste0("/Users/Kanon/Google Drive/AXA/data/MSH/"
+  data <- sas7bdat::read.sas7bdat(paste0("/Users/Kanon/Google Drive/AXA/data/MSH/Sinistre/"
                                     , name_claim_data))
   assign(name, data)
 }
 
 name_claim_data <- database[13]
-merged_data <- data_preprocessing("panel_generaliste_decompressed.sas7bdat" , panel_ass = panel_ass)
+merged_data <- data_preprocessing("consultation" , panel_ass = panel_ass)
 merged_data <- data.table::data.table(merged_data)
 merged_data$annee <- as.factor(merged_data$annee)
 ############################ Data Pre-processing ############################ 
@@ -70,20 +70,13 @@ glm_model <- glm(fmla, offset(tr$presence), family = poisson(link = log), data =
 ############################ Testing of glm_model model ############################ 
 
 prediction <- predict(object = glm_model, newdata = te[,xnames], type = "response")
+prediction <- exp(prediction) - 1
   
 kpi <- kpi_gini(predrisk = prediction, truerisk = te$somme_quantite
                 , exposure = te$presence, significance = 6)
 print(kpi)
 ############################ Testing of glm_model model ############################ 
 
-
-
-
-
-
-
-
-merged_data[sexe != 'I',][type_assure != "E", .(freq_mean= mean(somme_quantite), age_m = mean(age)), by = c("annee","sexe")]
 
 mean_var <- data.frame(poste = c(1), mean = c(1), var = c(1), logmean = c(1), logvar = c(1))
 

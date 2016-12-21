@@ -2,19 +2,6 @@ setwd("/Users/Kanon/Documents/Health_Pricing_GLM")
 source('utils.R')
 
 
-for(name_claim_data in database)
-{
-  name <- name_claim_data
-  #claim_data <- sas7bdat::read.sas7bdat(paste0("/Users/Kanon/Google Drive/AXA/data/MSH/"
-  #                                                      , name_claim_data))
-  #claim_data$pk <- as.numeric(paste(claim_data$annee,claim_data$ident_personne,sep=""))
-  #check_dup(claim_data, name, verbose = verbose)
-  print(name)
-  print(dim(eval(parse(text = name)))[1])
-  eliminate_negative(eval(parse(text = name)))
-  rm(name)
-}
-
 features <- c("autres_prothese", "protheses_auditives_pharmacie", "auxiliaire_medical", "kinesitherapie"
               , "bilan_de_sante", "cures_thermales", "dentaire_general", "implants", "orthodontie"
               , "protheses_dentaires", "parodontologie", "divers", "generaliste", "specialiste"
@@ -25,27 +12,35 @@ features <- c("autres_prothese", "protheses_auditives_pharmacie", "auxiliaire_me
               , "psychiatrie", "vaccins", "traitement_de_la_fertilite", "ambulance_transport")
 
 database <- list.files(path = '/Users/Kanon/Google Drive/AXA/data/MSH/')
-
-setwd("/Users/Kanon/Google Drive/AXA/data/Merged_data")
 database <- list.files(path = '/Users/Kanon/Google Drive/AXA/data/Merged_data')
 
 
-############################ Data Pre-processing ############################ 
+############################ Load in all database ############################ 
 panel_ass <- sas7bdat::read.sas7bdat("/Users/Kanon/Google Drive/AXA/data/MSH/exposure/panel_ass.sas7bdat")
+panel_ass <- binary_to_factor(panel_ass)
 for (name_claim_data in database)
 {
-  name <- get_name(name_claim_data)
+  name <- strsplit(name_claim_data,split = ".",fix =T)[[1]][1]
   print(paste0("reading ", name))
-  data <- sas7bdat::read.sas7bdat(paste0("/Users/Kanon/Google Drive/AXA/data/MSH/Sinistre/"
+  data <- read.csv(paste0("/Users/Kanon/Google Drive/AXA/data/Merged_data//"
                                     , name_claim_data))
   assign(name, data)
 }
+############################ Load in all database ############################ 
 
-name_claim_data <- database[13]
-merged_data <- data_preprocessing("consultation" , panel_ass = panel_ass)
-merged_data <- data.table::data.table(merged_data)
-merged_data$annee <- as.factor(merged_data$annee)
+
 ############################ Data Pre-processing ############################ 
+merged_data <- data_preprocessing("consultation" , panel_ass = panel_ass)
+############################ Data Pre-processing ############################ 
+
+
+############################ Group levels ############################ 
+merged_data <- group_pays_freq(merged_data, name, print.csv = T)
+merged_data <- group_pays_cout(merged_data, name, cp = 0.0001, print.csv = T)
+merged_data <- group_age_freq(merged_data, name, cp = 0.0002, print.csv = T)
+merged_data <- group_age_cout(merged_data, name, cp = 0.00003, print.csv = T)
+############################ Group levels ############################ 
+
 
 ############################ Generate training and testing data ############################ 
 

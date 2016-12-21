@@ -1,5 +1,96 @@
 ############################ Functions and tests ############################ 
 
+# group variable pays with respect to freqency
+group_pays_freq <- function(merged_data, name, print.csv = TRUE)
+{
+  new <- group_levels(dt = merged_data[,-"cout_moyen"], group_factor = 'pays_expat', frequency = 'somme_quantite'
+                      , exposure = 'presence', nbclusters = 20, verbose = TRUE, gbm.rank = T, cp = 0, treecut = 10) 
+  old <- merged_data$pays_expat
+  new_levels <- unique(data.table::data.table(new,old))[order(old)]$new 
+  rm(old)
+  rm(new)
+  group_table <- data.table::data.table(data.frame(pays_expat = levels(merged_data$pays_expat), group_pays_freq = new_levels))
+  if (print.csv == TRUE)
+  {
+    setwd("/Users/Kanon/Documents/Health_Pricing_GLM/saved_groups/")
+    write.csv(group_table, file = paste0(name,"_pays_freq.csv"))
+  }
+  merged_data <- merge(merged_data,group_table,by = "pays_expat", all.x =T)
+  return(merged_data)
+}
+
+
+# group variable pays with respect to cout
+group_pays_cout <- function(merged_data, name, cp = 0.0001, print.csv = T, verbose = T)
+{
+  data_cout <- merged_data[cout_moyen!=0,]
+  data_cout$pays_expat <- factor(data_cout$pays_expat)
+  level0 <- setdiff(levels(merged_data$pays_expat),levels(factor(data_cout$pays_expat)))
+  left_out <- data.frame(pays_expat = level0, group_pays_cout = 0)
+  rc <- rpart::rpart.control(cp = cp)
+  r <- rpart::rpart(cout_moyen ~ pays_expat, data = data_cout, control = rc)
+  replace <- data.frame(pays_expat = data_cout$pays_expat, group_pays_cout = r$where)
+  replace <- unique(replace)
+  replace <- rbind(replace,left_out)
+  replace$group_pays_cout <- factor(replace$group_pays_cout)
+  for (i in 1:length(levels(replace$group_pays_cout)))
+  {levels(replace$group_pays_cout)[i] <- paste0("group_",i)}
+  replace <- replace[order(replace$group_pays_cout),]
+  if (print.csv == TRUE)
+  {
+    setwd("/Users/Kanon/Documents/Health_Pricing_GLM/saved_groups/")
+    write.csv(replace, file = paste0(name,"_pays_cout.csv"))
+  }
+  merged_data <- merge(merged_data,replace,by = "pays_expat", all.x =T)
+  return(merged_data)
+}
+
+# group variable age with respect to cout
+group_age_cout <- function(merged_data, name, cp = 0.00002, print.csv = TRUE)
+{
+  data_cout <- merged_data[cout_moyen!=0,]
+  level0 <- setdiff(unique(merged_data$age),unique(factor(data_cout$age)))
+  left_out <- data.frame(age = level0, group_age_cout = 0)
+  rc <- rpart::rpart.control(cp = cp)
+  r <- rpart::rpart(cout_moyen ~ age, data = data_cout, control = rc)
+  rpart.plot::rpart.plot(r)
+  replace <- data.frame(age = data_cout$age, group_age_cout =  r$where)
+  replace <- unique(replace)
+  replace <- replace[order(replace$age),]
+  replace <- rbind(replace,left_out)
+  replace$group_age_cout <- factor(replace$group_age_cout)
+  for (i in 1:length(levels(replace$group_age_cout)))
+  {levels(replace$group_age_cout)[i] <- paste0("group_",i)}
+  if (print.csv == TRUE)
+  {
+    setwd("/Users/Kanon/Documents/Health_Pricing_GLM/saved_groups/")
+    write.csv(replace, file = paste0(name,"_age_cout.csv"))
+  }
+  merged_data <- merge(merged_data,replace,by = "age", all.x =T)
+  return(merged_data)
+}
+
+# group variable age with respect to frequency
+group_age_freq <- function(merged_data, name, cp = 0.0005, print.csv = TRUE)
+{
+  rc <- rpart::rpart.control(cp = cp)
+  r <- rpart::rpart(somme_quantite ~ age, data = merged_data, control = rc)
+  rpart.plot::rpart.plot(r)
+  replace <- data.frame(age = merged_data$age, group_age_freq =  r$where)
+  replace <- unique(replace)
+  replace <- replace[order(replace$age),]
+  replace$group_age_freq <- factor(replace$group_age_freq)
+  for (i in 1:length(levels(replace$group_age_freq)))
+  {levels(replace$group_age_freq)[i] <- paste0("group_",i)}
+  if (print.csv == TRUE)
+  {
+    setwd("/Users/Kanon/Documents/Health_Pricing_GLM/saved_groups/")
+    write.csv(replace, file = paste0(name,"_age_freq.csv"))
+  }
+  merged_data <- merge(merged_data,replace,by = "age", all.x =T)
+  return(merged_data)
+}
+
 # for merging 
 merge_data <- function(namelist,merged_name)
 {
@@ -228,6 +319,32 @@ data_preprocessing <- function(name_claim_data, verbose = TRUE, panel_ass = pane
   if (verbose == TRUE)
   {print("Eliminate observations whose target is negative")}
   merged_data <- eliminate_negative(merged_data, verbose = verbose)
+  
+  # Converting merged_data into data.table object
+  merged_data <- data.table::data.table(merged_data)
+  
+  # Furthuer removal of useless or unidentified variables from merged_data
+  merged_data$ident_famille <- NULL
+  merged_data$ident_police <- NULL
+  merged_data$ident_personne <- NULL
+  
+  # Create a feature which indicates whether the date_sortie equals to date_sortie_obs
+  merged_data$sortie_prevu <- merged_data$date_sortie == merged_data$date_sortie_obs
+
+  # Furthuer removal of useless or unidentified variables from merged_data
+  merged_data$date_sortie <- NULL
+  merged_data$date_sortie_obs <-NULL
+  merged_data$pointeur_origine <- NULL
+  merged_data$X <- NULL
+  merged_data$temps_de_presence <- NULL
+  merged_data$IDENT_CONV <- NULL
+  merged_data$categorie <- NULL
+  
+  # convert somme_frois to cout_moyen
+  merged_data$cout_moyen <- 0
+  happened <- which(merged_data$somme_quantite != 0)
+  merged_data$cout_moyen[happened] <- merged_data$somme_frais[happened]/merged_data$somme_quantite[happened]
+  merged_data$somme_frais <- NULL
   
   # Return the processed clean dataset
   return(merged_data)
@@ -827,11 +944,11 @@ group_levels <- function(dt, group_factor, loose_ends = NULL, frequency, exposur
     name = names(column)
     # create data table object for the prepration of training set
     column[[names(group_factor)]] <- group_factor[[names(group_factor)]]
-    column <- as.data.table(column)
+    column <- data.table::data.table(column)
     dt = column[,.(mean(get(name),na.rm=T)
                    ,sd(get(name),na.rm=T)
-                   ,skewness(get(name),na.rm=T)
-                   ,kurtosis(get(name),na.rm=T)
+                   ,e1071::skewness(get(name),na.rm=T)
+                   ,e1071::kurtosis(get(name),na.rm=T)
                    ,quantile(get(name),.01,na.rm=T)
                    ,quantile(get(name),.1,na.rm=T)
                    ,quantile(get(name),.25,na.rm=T)
@@ -911,7 +1028,7 @@ group_levels <- function(dt, group_factor, loose_ends = NULL, frequency, exposur
       }
       return(ncols)
     }
-    temp <- as.data.table(c(column,group_factor))
+    temp <- data.table::data.table(c(column,group_factor))
     dt <- table(group_factor[[names(group_factor)]],column[[names(column)]])
     dt <- as.data.frame.matrix(dt)
     # Assign column names
@@ -932,7 +1049,7 @@ group_levels <- function(dt, group_factor, loose_ends = NULL, frequency, exposur
     }
     dt[,paste0(index,'sd')] <- standd
     dt[,paste0(index,'entropy')] <- sentropy
-    dt <- as.data.table(dt)
+    dt <- data.table::data.table(dt)
     return(dt)
   }
   ##############################################################################################################
@@ -942,8 +1059,8 @@ group_levels <- function(dt, group_factor, loose_ends = NULL, frequency, exposur
   ############################################ feature selection ###############################################
   feature_selection <- function(sdt,treecut,cp)
   {
-    mycontrol <- rpart.control(cp = cp, xval = 10)
-    tree = rpart(formula = 100*(sdt$tgt-mean(sdt$tgt))~.
+    mycontrol <- rpart::rpart.control(cp = cp, xval = 10)
+    tree = rpart::rpart(formula = 100*(sdt$tgt-mean(sdt$tgt))~.
                  ,data = sdt,control = mycontrol)
     split = as.character(unique(tree$frame$var))
     split = split[split != '<leaf>']
@@ -985,7 +1102,7 @@ group_levels <- function(dt, group_factor, loose_ends = NULL, frequency, exposur
     {
       combined_features[['tgt']] = tgt[['tgt']]
       combined_features[[names(group_factor)]] <- NULL
-      mygbm <- gbm(formula = combined_features$tgt ~ ., data = combined_features, interaction.depth = 3
+      mygbm <- gbm::gbm(formula = combined_features$tgt ~ ., data = combined_features, interaction.depth = 3
                    , distribution = 'gaussian', shrinkage = 0.001, bag.fraction = 0.5, n.trees = 100, 
                    verbose = verbose)
       if (verbose == T)
@@ -1037,7 +1154,7 @@ group_levels <- function(dt, group_factor, loose_ends = NULL, frequency, exposur
     
     for (column in n_variables)
     {
-      column <- as.data.table(column)
+      column <- data.table::data.table(column)
       
       # create data table s_table by merging column and bonus
       # s_table contains exposure, risk frequency and one feature from n_variables
@@ -1080,7 +1197,7 @@ group_levels <- function(dt, group_factor, loose_ends = NULL, frequency, exposur
     cname <- names(c_variables)
     for (column in c_variables)
     {
-      column <- as.data.table(column)
+      column <- data.table::data.table(column)
       names(column) <- cname[name_count]
       name_count <- name_count + 1
       if (names(column) != names(group_factor))

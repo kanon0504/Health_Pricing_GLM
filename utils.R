@@ -14,6 +14,15 @@ group_pays_freq <- function(merged_data, name, print.csv = TRUE)
   {
     setwd("/Users/Kanon/Documents/Health_Pricing_GLM/saved_groups/")
     write.csv(group_table, file = paste0(name,"_pays_freq.csv"))
+    map <- joinCountryData2Map( group_table
+                                ,joinCode = "NAME"
+                                ,nameJoinColumn = "pays_expat") 
+    setwd("/Users/Kanon/Documents/Health_Pricing_GLM/saved_plots/group")
+    png(filename = paste0(name,"_group_freq.png"), width = 6, height = 3.25,
+        units = "in",res = 400, pointsize = 2)
+    mapCountryData(map, nameColumnToPlot = "group_pays_freq",mapTitle = paste0("Group_en_fonction_de_freq_",name),
+                   catMethod = "categorical")
+    dev.off()
   }
   merged_data <- merge(merged_data,group_table,by = "pays_expat", all.x =T)
   return(merged_data)
@@ -34,12 +43,21 @@ group_pays_cout <- function(merged_data, name, cp = 0.0001, print.csv = T, verbo
   replace <- rbind(replace,left_out)
   replace$group_pays_cout <- factor(replace$group_pays_cout)
   for (i in 1:length(levels(replace$group_pays_cout)))
-  {levels(replace$group_pays_cout)[i] <- paste0("group_",i)}
+  {levels(replace$group_pays_cout)[i] <- paste0("G",i)}
   replace <- replace[order(replace$group_pays_cout),]
   if (print.csv == TRUE)
   {
     setwd("/Users/Kanon/Documents/Health_Pricing_GLM/saved_groups/")
     write.csv(replace, file = paste0(name,"_pays_cout.csv"))
+    map <- joinCountryData2Map( replace
+                                ,joinCode = "NAME"
+                                ,nameJoinColumn = "pays_expat") 
+    setwd("/Users/Kanon/Documents/Health_Pricing_GLM/saved_plots/group")
+    png(filename = paste0(name,"_group_cout.png"),  width = 6, height = 3.25,
+         units = "in",res = 400, pointsize = 2)
+    mapCountryData(map, nameColumnToPlot = "group_pays_cout",mapTitle = paste0("Group_en_fonction_de_cout_",name),
+                   catMethod = "categorical")
+    dev.off()
   }
   merged_data <- merge(merged_data,replace,by = "pays_expat", all.x =T)
   return(merged_data)
@@ -60,7 +78,7 @@ group_age_cout <- function(merged_data, name, cp = 0.00002, print.csv = TRUE)
   replace <- rbind(replace,left_out)
   replace$group_age_cout <- factor(replace$group_age_cout)
   for (i in 1:length(levels(replace$group_age_cout)))
-  {levels(replace$group_age_cout)[i] <- paste0("group_",i)}
+  {levels(replace$group_age_cout)[i] <- paste0("G",i)}
   if (print.csv == TRUE)
   {
     setwd("/Users/Kanon/Documents/Health_Pricing_GLM/saved_groups/")

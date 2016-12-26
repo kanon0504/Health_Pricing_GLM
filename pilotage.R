@@ -18,6 +18,17 @@ database <- list.files(path = '/Users/Kanon/Google Drive/AXA/data/Merged_data')
 ############################ Load in all database ############################ 
 panel_ass <- sas7bdat::read.sas7bdat("/Users/Kanon/Google Drive/AXA/data/MSH/exposure/panel_ass.sas7bdat")
 panel_ass <- binary_to_factor(panel_ass)
+levels(panel_ass$pays_expat)[levels(panel_ass$pays_expat)=="ZZ_FRANCE"] <-
+  "FRANCE"
+levels(panel_ass$pays_expat)[levels(panel_ass$pays_expat)=="DEM. REP. CONGO"] <- 
+  "DEMOCRATIC REPUBLIC OF THE CONGO"
+levels(panel_ass$pays_expat)[levels(panel_ass$pays_expat)=="BOSNIA HERZEGOVINA"] <- 
+  "Bosnia and Herzegovina"
+levels(panel_ass$pays_expat)[levels(panel_ass$pays_expat)=="CENTRAL AFRICAN REP"] <- 
+  "Central African Republic"
+levels(panel_ass$pays_expat)[levels(panel_ass$pays_expat)=="MACEDONIA (FYROM)"] <-
+  "MACEDONIA"
+
 for (name_claim_data in database)
 {
   name <- strsplit(name_claim_data,split = ".",fix =T)[[1]][1]
@@ -72,21 +83,36 @@ kpi <- kpi_gini(predrisk = prediction, truerisk = te$somme_quantite
 print(kpi)
 ############################ Testing of glm_model model ############################ 
 
-
-mean_var <- data.frame(poste = c(1), mean = c(1), var = c(1), logmean = c(1), logvar = c(1))
+pays_expat <- levels(panel_ass$pays_expat)
+pays_dist <- panel_ass[,.(nb_assure = .N), by = pays_expat]
 
 for (name_claim in database)
 {
   merged_data <- data_preprocessing(name_claim , panel_ass = panel_ass, verbose = FALSE)
-  temp <- check_dist(merged_data)
-  mean_var <- rbind(mean_var, c(strsplit(name_claim, split = ".", fixed = T)[[1]][1], temp))
+  #merged_data <- data.table::data.table(merged_data)
+  # temp <- merged_data[,.(nb_sinistre = sum(somme_quantite)), by = pays_expat]
+  # names(temp)[2] <- name_claim
+  # pays_dist <- merge(pays_dist, temp, by = "pays_expat", x.all = T)
+  group_pays_cout(merged_data, name = name_claim)  
   # setwd("/Users/Kanon/Documents/Health_Pricing_GLM/saved_plots//")
   # plot_claim(name_claim, panel_ass)
   # setwd("/Users/Kanon/Documents/Health_Pricing_GLM/saved_data/")
   # save_data(name_claim, panel_ass)
 }
 
+library(rworldmap)
+library(WDI)
+library(RColorBrewer)
+pays_dist <- merge(pays_dist, replace, by = "pays_expat", all.x = T)
+mymap <- joinCountryData2Map( pays_dist, joinCode = "NAME",
+                              suggestForFailedCodes = T,nameJoinColumn = "pays_expat") 
+setwd("/Users/Kanon/Documents/Health_Pricing_GLM")
+png(filename = paste0("Manque_d'observation_pays.png"), width = 6, height = 3.25,
+    units = "in",res = 400, pointsize = 2)
 
+mapCountryData(map, nameColumnToPlot = "sum",mapTitle = "Manque_d'observation", 
+                catMethod = "categorical", numCats = )
+dev.off()
 
 
 

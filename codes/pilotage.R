@@ -1,60 +1,44 @@
-setwd("/Users/Kanon/Documents/Health_Pricing_GLM")
-source('utils.R')
+setwd("F:/NORMES TECHNIQUES/PERIMETRE EXPATRIES/12 - Tarification GLM 2016/06-Modèle GLM")
+source("./Codes dans R/utils.R")
 
 
-features <- c("autres_prothese", "protheses_auditives_pharmacie", "auxiliaire_medical", "kinesitherapie"
-              , "bilan_de_sante", "cures_thermales", "dentaire_general", "implants", "orthodontie"
-              , "protheses_dentaires", "parodontologie", "divers", "generaliste", "specialiste"
-              , "hospitalisation", "chambre_particuliere", "hospitalisation_de_jour", "lit_accompagnant"
-              , "maternite_generale", "cesarienne", "chiropractie", "osteopathie", "acuponcture"
-              , "autres_medecines_alternatives", "medecine_preventive", "radiotherapie", "chimiotherapie"
-              , "keratomie", "lentilles", "montures", "verres", "optique", "petit_risque", "pharmacie"
-              , "psychiatrie", "vaccins", "traitement_de_la_fertilite", "ambulance_transport")
-
-database <- list.files(path = '/Users/Kanon/Google Drive/AXA/data/MSH/')
-database <- list.files(path = '/Users/Kanon/Google Drive/AXA/data/Merged_data')
 
 
 ############################ Load in all database ############################ 
-panel_ass <- sas7bdat::read.sas7bdat("/Users/Kanon/Google Drive/AXA/data/MSH/exposure/panel_ass.sas7bdat")
-panel_ass <- binary_to_factor(panel_ass)
-levels(panel_ass$pays_expat)[levels(panel_ass$pays_expat)=="ZZ_FRANCE"] <-
-  "FRANCE"
-levels(panel_ass$pays_expat)[levels(panel_ass$pays_expat)=="DEM. REP. CONGO"] <- 
-  "DEMOCRATIC REPUBLIC OF THE CONGO"
-levels(panel_ass$pays_expat)[levels(panel_ass$pays_expat)=="BOSNIA HERZEGOVINA"] <- 
-  "Bosnia and Herzegovina"
-levels(panel_ass$pays_expat)[levels(panel_ass$pays_expat)=="CENTRAL AFRICAN REP"] <- 
-  "Central African Republic"
-levels(panel_ass$pays_expat)[levels(panel_ass$pays_expat)=="MACEDONIA (FYROM)"] <-
-  "MACEDONIA"
+# read processed exposure data
+panel_ass <- read.csv("./Base de donnée après traitement/Assurées/panel_ass_clean.csv")
 
+# read in 24 claim data
+database <- list.files(path = "./Base de donnée après traitement/Sinistres/")
 for (name_claim_data in database)
 {
   name <- strsplit(name_claim_data,split = ".",fix =T)[[1]][1]
   print(paste0("reading ", name))
-  data <- read.csv(paste0("/Users/Kanon/Google Drive/AXA/data/Merged_data//"
+  data <- read.csv(paste0("./Base de donnée après traitement/Sinistres/"
                                     , name_claim_data))
+  data$X <- NULL
   assign(name, data)
 }
 ############################ Load in all database ############################ 
 
 
 ############################ Data Pre-processing ############################ 
-merged_data <- data_preprocessing("consultation" , panel_ass = panel_ass)
+merged_data <- data_preprocessing("maternite_sauf_fiv" , panel_ass = panel_ass)
+merged_data <- data.table::data.table(merged_data)
 ############################ Data Pre-processing ############################ 
 
 
 ############################ Group levels ############################ 
 merged_data <- group_pays_freq(merged_data, name, print.csv = T)
-merged_data <- group_pays_cout(merged_data, name, cp = 0.0001, print.csv = T)
-merged_data <- group_age_freq(merged_data, name, cp = 0.0002, print.csv = T)
-merged_data <- group_age_cout(merged_data, name, cp = 0.00003, print.csv = T)
+merged_data <- group_pays_cout(merged_data, name, print.csv = T)
+merged_data <- group_age_freq(merged_data, name, print.csv = F)
+merged_data <- group_age_cout(merged_data, name, print.csv = F)
+merged_data <- group_nationalite_freq(merged_data, name, print.csv = T)
+merged_data <- group_nationalite_cout(merged_data, name, print.csv = T)
 ############################ Group levels ############################ 
 
 
 ############################ Generate training and testing data ############################ 
-
 returnlist <- random_split(merged_data)
 tr <- returnlist$train.set # training dataset
 te <- returnlist$test.set # testing dataset
@@ -65,11 +49,12 @@ xnames <- names(tr)
 to_remove <- c("presence", "somme_quantite", "ident_police", "ident_famille", "IDENT_CONV"
                , "pointeur_origine", "date_sortie", "ident_personne", "somme_frais", "categorie")
 #xnames <- setdiff(xnames, to_remove)
-xnames <- c("type_assure", "sexe","annee","categorie")
-fmla <- as.formula(paste("tr$somme_quantite ~ ",paste(xnames,collapse = '+')))
+xnames <- c("type_assure", "sexe","group_age_freq")
+
+fmla_freq <- as.formula(paste("tr$somme_quantite ~ ",paste(xnames,collapse = '+')))
 
 
-glm_model <- glm(fmla, offset(tr$presence), family = poisson(link = log), data = tr)
+glm_freq <- glm(fmla_freq, offset(tr$presence), family = poisson(), data = tr)
 ############################ Generate training and testing data ############################ 
 
 
@@ -86,19 +71,51 @@ print(kpi)
 pays_expat <- levels(panel_ass$pays_expat)
 pays_dist <- panel_ass[,.(nb_assure = .N), by = pays_expat]
 
-for (name_claim in database)
+xnames <- names(panel_ass)
+to_remove <- c("X","presence",  "ident_police", "ident_famille", "ident_personne", "date_naissance",
+               "IDENT_CONV", "date_entree", "date_sortie", "nationalite", "nationalite_2", "pays_expat",
+               "pays_expat_2","pays", "pays_2", "pointeur_origine", "date_sortie_obs", "temps_de_presence",
+               "temps_de_presence_2","age","presence", "categorie")
+xnames <- setdiff(xnames, to_remove)
+xnames <- c("type_assure","sexe","taille_famille","nb_conjoints","nb_enfants","annee")
+xnames_freq <- c(xnames, "group_pays_freq","group_age_freq","group_nationalite_freq")
+xnames_cout <- c(xnames, "group_pays_cout","group_age_cout","group_nationalite_cout")
+fmla_freq <- as.formula(paste("somme_quantite ~ ",paste(xnames_freq,collapse = '+')))
+fmla_cout <- as.formula(paste("cout_moyen ~ ",paste(xnames_cout,collapse = '+')))
+
+for (name_claim in database[8:24])
 {
   merged_data <- data_preprocessing(name_claim , panel_ass = panel_ass, verbose = FALSE)
+  merged_data <- data.table::data.table(merged_data)
+  merged_data <- group_pays_freq(merged_data, name_claim, print.csv = T)
+  merged_data <- group_pays_cout(merged_data, name_claim, print.csv = T)
+  merged_data <- group_age_freq(merged_data, name_claim, print.csv = F)
+  merged_data <- group_age_cout(merged_data, name_claim, print.csv = F)
+  merged_data <- group_nationalite_freq(merged_data, name_claim, print.csv = T)
+  merged_data <- group_nationalite_cout(merged_data, name_claim, print.csv = T)
+  
+  merged_cout <- merged_data[cout_moyen>0,]
+  varchars = names(merged_cout)[which(sapply(merged_cout,is.factor))]
+  for (j in varchars) 
+  { data.table::set(merged_cout,j=j,value = as.factor(merged_cout[[j]]))}
+  glm_freq <- glm(fmla_freq, offset(merged_data$presence), family = poisson(link = "log"), data = merged_data)
+  glm_cout <- glm(fmla_cout, offset(merged_cout$presence),family = Gamma(link = "log"), data = merged_cout)
+  
+  s_freq <- summary.glm(glm_freq)$coefficients
+  s_cout <- summary.glm(glm_cout)$coefficients
+  
+  write.csv(s_freq, file = paste0("./Models/freq/freq_",name_claim))
+  write.csv(s_cout, file = paste0("./Models/cout/cout_",name_claim))
   #merged_data <- data.table::data.table(merged_data)
   # temp <- merged_data[,.(nb_sinistre = sum(somme_quantite)), by = pays_expat]
   # names(temp)[2] <- name_claim
   # pays_dist <- merge(pays_dist, temp, by = "pays_expat", x.all = T)
-  group_pays_cout(merged_data, name = name_claim)  
   # setwd("/Users/Kanon/Documents/Health_Pricing_GLM/saved_plots//")
   # plot_claim(name_claim, panel_ass)
   # setwd("/Users/Kanon/Documents/Health_Pricing_GLM/saved_data/")
   # save_data(name_claim, panel_ass)
 }
+
 
 library(rworldmap)
 library(WDI)

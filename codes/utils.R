@@ -1,43 +1,93 @@
 ############################ Functions and tests ############################ 
 
-# group variable pays with respect to freqency
-group_pays_freq <- function(merged_data, name, print.csv = TRUE)
+# group variable nationalite with respect to freqency
+group_nationalite_freq <- function(merged_data, name, print.csv = TRUE)
 {
-  new <- group_levels(dt = merged_data[,-"cout_moyen"], group_factor = 'pays_expat', frequency = 'somme_quantite'
-                      , exposure = 'presence', nbclusters = 20, verbose = TRUE, gbm.rank = T, cp = 0, treecut = 10) 
-  old <- merged_data$pays_expat
-  new_levels <- unique(data.table::data.table(new,old))[order(old)]$new 
-  rm(old)
-  rm(new)
-  group_table <- data.table::data.table(data.frame(pays_expat = levels(merged_data$pays_expat), group_pays_freq = new_levels))
+  r <- rpart::rpart(somme_quantite ~ nationalite, data = merged_data, cp = 0)
+  cp <- rpart::printcp(r)[10]
+  r <- rpart::prune(r, cp = cp)
+  replace <- data.frame(nationalite = merged_data$nationalite, group_nationalite_freq =  r$where)
+  replace <- unique(replace)
+  replace$group_nationalite_freq <- factor(replace$group_nationalite_freq)
+  for (i in 1:length(levels(replace$group_nationalite_freq)))
+  {levels(replace$group_nationalite_freq)[i] <- paste0("G",i)}
   if (print.csv == TRUE)
   {
-    setwd("/Users/Kanon/Documents/Health_Pricing_GLM/saved_groups/")
-    write.csv(group_table, file = paste0(name,"_pays_freq.csv"))
-    map <- joinCountryData2Map( group_table
+    write.csv(replace, file = paste0("./grouping/nationalite_freq/",name,"_nationalite_freq.csv"))
+    map <- rworldmap::joinCountryData2Map( replace
+                                           ,joinCode = "NAME"
+                                           ,nameJoinColumn = "nationalite") 
+  }
+  merged_data <- merge(merged_data,replace,by = "nationalite", all.x =T)
+  return(merged_data)
+}
+
+# group variable nationalite with respect to cout
+group_nationalite_cout <- function(merged_data, name, cp = 0.0001, print.csv = T, verbose = T)
+{
+  data_cout <- merged_data[cout_moyen > 0,]
+  data_cout$nationalite <- factor(data_cout$nationalite)
+  level0 <- setdiff(levels(merged_data$nationalite),levels(factor(data_cout$nationalite)))
+  left_out <- data.frame(nationalite = level0, group_nationalite_cout = 0)
+  r <- rpart::rpart(cout_moyen ~ nationalite, data = data_cout, cp = 0)
+  cp <- rpart::printcp(r)[10]
+  r <- rpart::prune(r, cp = cp)
+  replace <- data.frame(nationalite = data_cout$nationalite, group_nationalite_cout = r$where)
+  replace <- unique(replace)
+  replace <- rbind(replace,left_out)
+  replace$group_nationalite_cout <- factor(replace$group_nationalite_cout)
+  for (i in 1:length(levels(replace$group_nationalite_cout)))
+  {levels(replace$group_nationalite_cout)[i] <- paste0("G",i)}
+  replace <- replace[order(replace$group_nationalite_cout),]
+  if (print.csv == TRUE)
+  {
+    write.csv(replace, file = paste0("./grouping/nationalite_cout/",name,"_nationalite_cout.csv"))
+    map <- rworldmap::joinCountryData2Map( replace
+                                           ,joinCode = "NAME"
+                                           ,nameJoinColumn = "nationalite") 
+  }
+  merged_data <- merge(merged_data,replace,by = "nationalite", all.x =T)
+  return(merged_data)
+}
+
+# group variable pays with respect to freqency
+group_pays_freq <- function(merged_data, name, print.csv = TRUE, minsplit = 15)
+{
+  r <- rpart::rpart(somme_quantite ~ pays_expat, data = merged_data, cp = 0)
+  cp <- rpart::printcp(r)[10]
+  r <- rpart::prune(r, cp = cp)
+  replace <- data.frame(pays_expat = merged_data$pays_expat, group_pays_freq =  r$where)
+  replace <- unique(replace)
+  replace$group_pays_freq <- factor(replace$group_pays_freq)
+  for (i in 1:length(levels(replace$group_pays_freq)))
+  {levels(replace$group_pays_freq)[i] <- paste0("G",i)}
+  if (print.csv == TRUE)
+  {
+    write.csv(replace, file = paste0("./grouping/pays_freq/",name,"_pays_freq.csv"))
+    map <- rworldmap::joinCountryData2Map( replace
                                 ,joinCode = "NAME"
                                 ,nameJoinColumn = "pays_expat") 
-    setwd("/Users/Kanon/Documents/Health_Pricing_GLM/saved_plots/group")
-    png(filename = paste0(name,"_group_freq.png"), width = 6, height = 3.25,
+    png(filename = paste0("./plots/pays_freq/",name,"_group_freq.png"), width = 6, height = 3.25,
         units = "in",res = 400, pointsize = 2)
-    mapCountryData(map, nameColumnToPlot = "group_pays_freq",mapTitle = paste0("Group_en_fonction_de_freq_",name),
+    rworldmap::mapCountryData(map, nameColumnToPlot = "group_pays_freq",mapTitle = paste0("Group_en_fonction_de_freq_",name),
                    catMethod = "categorical")
     dev.off()
   }
-  merged_data <- merge(merged_data,group_table,by = "pays_expat", all.x =T)
+  merged_data <- merge(merged_data,replace,by = "pays_expat", all.x =T)
   return(merged_data)
 }
 
 
 # group variable pays with respect to cout
-group_pays_cout <- function(merged_data, name, cp = 0.0001, print.csv = T, verbose = T)
+group_pays_cout <- function(merged_data, name, print.csv = T, verbose = T)
 {
-  data_cout <- merged_data[cout_moyen!=0,]
+  data_cout <- merged_data[cout_moyen > 0,]
   data_cout$pays_expat <- factor(data_cout$pays_expat)
   level0 <- setdiff(levels(merged_data$pays_expat),levels(factor(data_cout$pays_expat)))
   left_out <- data.frame(pays_expat = level0, group_pays_cout = 0)
-  rc <- rpart::rpart.control(cp = cp)
-  r <- rpart::rpart(cout_moyen ~ pays_expat, data = data_cout, control = rc)
+  r <- rpart::rpart(cout_moyen ~ pays_expat, data = data_cout, cp = 0)
+  cp <- rpart::printcp(r)[10]
+  r <- rpart::prune(r, cp = cp)
   replace <- data.frame(pays_expat = data_cout$pays_expat, group_pays_cout = r$where)
   replace <- unique(replace)
   replace <- rbind(replace,left_out)
@@ -47,16 +97,14 @@ group_pays_cout <- function(merged_data, name, cp = 0.0001, print.csv = T, verbo
   replace <- replace[order(replace$group_pays_cout),]
   if (print.csv == TRUE)
   {
-    setwd("/Users/Kanon/Documents/Health_Pricing_GLM/saved_groups/")
-    write.csv(replace, file = paste0(name,"_pays_cout.csv"))
-    map <- joinCountryData2Map( replace
-                                ,joinCode = "NAME"
-                                ,nameJoinColumn = "pays_expat") 
-    setwd("/Users/Kanon/Documents/Health_Pricing_GLM/saved_plots/group")
-    png(filename = paste0(name,"_group_cout.png"),  width = 6, height = 3.25,
-         units = "in",res = 400, pointsize = 2)
-    mapCountryData(map, nameColumnToPlot = "group_pays_cout",mapTitle = paste0("Group_en_fonction_de_cout_",name),
-                   catMethod = "categorical")
+    write.csv(replace, file = paste0("./grouping/pays_cout/",name,"_pays_cout.csv"))
+    map <- rworldmap::joinCountryData2Map( replace
+                                           ,joinCode = "NAME"
+                                           ,nameJoinColumn = "pays_expat") 
+    png(filename = paste0("./plots/pays_cout/",name,"_group_cout.png"), width = 6, height = 3.25,
+        units = "in",res = 400, pointsize = 2)
+    rworldmap::mapCountryData(map, nameColumnToPlot = "group_pays_cout",mapTitle = paste0("Group_en_fonction_de_cout_",name),
+                              catMethod = "categorical")
     dev.off()
   }
   merged_data <- merge(merged_data,replace,by = "pays_expat", all.x =T)
@@ -64,21 +112,27 @@ group_pays_cout <- function(merged_data, name, cp = 0.0001, print.csv = T, verbo
 }
 
 # group variable age with respect to cout
-group_age_cout <- function(merged_data, name, cp = 0.00002, print.csv = TRUE)
+group_age_cout <- function(merged_data, name, print.csv = TRUE)
 {
-  data_cout <- merged_data[cout_moyen!=0,]
+  data_cout <- merged_data[cout_moyen > 0,]
   level0 <- setdiff(unique(merged_data$age),unique(factor(data_cout$age)))
   left_out <- data.frame(age = level0, group_age_cout = 0)
-  rc <- rpart::rpart.control(cp = cp)
-  r <- rpart::rpart(cout_moyen ~ age, data = data_cout, control = rc)
+  r <- rpart::rpart(cout_moyen ~ age, data = data_cout, cp = 0)
+  cp <- rpart::printcp(r)[10]
+  r <- rpart::prune(r, cp = cp)
   rpart.plot::rpart.plot(r)
   replace <- data.frame(age = data_cout$age, group_age_cout =  r$where)
   replace <- unique(replace)
-  replace <- replace[order(replace$age),]
-  replace <- rbind(replace,left_out)
-  replace$group_age_cout <- factor(replace$group_age_cout)
-  for (i in 1:length(levels(replace$group_age_cout)))
-  {levels(replace$group_age_cout)[i] <- paste0("G",i)}
+  group_name <- levels(as.factor(replace$group_age_cout))
+  level_name <- c()
+  for (i in 1:length(group_name))
+  {
+    ma <- max(replace[replace$group_age_cout == group_name[i],]$age)
+    mi <- min(replace[replace$group_age_cout == group_name[i],]$age)
+    level_name <- c(level_name, paste0(mi,"-",ma))
+  }
+  replace$group_age_cout <- as.factor(replace$group_age_cout)
+  levels(replace$group_age_cout) <- level_name
   if (print.csv == TRUE)
   {
     setwd("/Users/Kanon/Documents/Health_Pricing_GLM/saved_groups/")
@@ -89,17 +143,24 @@ group_age_cout <- function(merged_data, name, cp = 0.00002, print.csv = TRUE)
 }
 
 # group variable age with respect to frequency
-group_age_freq <- function(merged_data, name, cp = 0.0005, print.csv = TRUE)
+group_age_freq <- function(merged_data, name, print.csv = TRUE)
 {
-  rc <- rpart::rpart.control(cp = cp)
-  r <- rpart::rpart(somme_quantite ~ age, data = merged_data, control = rc)
+  r <- rpart::rpart(somme_quantite ~ age, data = merged_data, cp = 0)
+  cp <- rpart::printcp(r)[10]
+  r <- rpart::prune(r, cp = cp)
   rpart.plot::rpart.plot(r)
   replace <- data.frame(age = merged_data$age, group_age_freq =  r$where)
   replace <- unique(replace)
-  replace <- replace[order(replace$age),]
-  replace$group_age_freq <- factor(replace$group_age_freq)
-  for (i in 1:length(levels(replace$group_age_freq)))
-  {levels(replace$group_age_freq)[i] <- paste0("group_",i)}
+  group_name <- levels(as.factor(replace$group_age_freq))
+  level_name <- c()
+  for (i in 1:length(group_name))
+  {
+    ma <- max(replace[replace$group_age_freq == group_name[i],]$age)
+    mi <- min(replace[replace$group_age_freq == group_name[i],]$age)
+    level_name <- c(level_name, paste0(mi,"-",ma))
+  }
+  replace$group_age_freq <- as.factor(replace$group_age_freq)
+  levels(replace$group_age_freq) <- level_name
   if (print.csv == TRUE)
   {
     setwd("/Users/Kanon/Documents/Health_Pricing_GLM/saved_groups/")
@@ -258,10 +319,6 @@ data_preprocessing <- function(name_claim_data, verbose = TRUE, panel_ass = pane
     panel_ass <- sas7bdat::read.sas7bdat("/Users/Kanon/Google Drive/AXA/data/MSH/exposure/panel_ass.sas7bdat")
   }
   
-  # Load datasets on Windows #
-  # panel_ass <- read.sas7bdat("C:/Users/s636000/Documents/Expat/data/MSH/panel_ass.sas7bdat")
-  # claim_data <- read.sas7bdat(paste0("C:/Users/s636000/Documents/Expat/data/MSH/",name_claim_data))
-  
   # Check the format of each data set #
   if (verbose == TRUE)
   {print(paste0("Check whether ", name_claim_data, " is a data.frame object: "))}
@@ -307,11 +364,6 @@ data_preprocessing <- function(name_claim_data, verbose = TRUE, panel_ass = pane
   merged_data$somme_quantite[is.na(merged_data$somme_quantite)] <- 0
   # Assign 0 to the cost column for those who haven't had claims during exposure #
   merged_data$somme_frais[is.na(merged_data$somme_frais)] <- 0
-  # Replace some of the missing entries(30%) of date_sortie by date_sortie_obs #
-  merged_data$date_sortie[is.na(merged_data$date_sortie)] <- 
-    merged_data$date_sortie_obs[which(is.na(merged_data$date_sortie))]
-  # Delete entries whose date_naissance(age at the same time) is NA(very few, 8 cases in panel_ass) #
-  merged_data <- merged_data[-which(is.na(merged_data$age)),]
   # Detect all the columns that contain NA value and the number of them #
   if (verbose == TRUE)
   {detection_NA(merged_data)}

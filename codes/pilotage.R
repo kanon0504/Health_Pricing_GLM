@@ -19,12 +19,14 @@ for (name_claim_data in database)
   data$X <- NULL
   assign(name, data)
 }
+rm(database)
+rm(name)
+rm(name_claim_data)
 ############################ Load in all database ############################ 
 
 
 ############################ Data Pre-processing ############################ 
-merged_data <- data_preprocessing("maternite_sauf_fiv" , panel_ass = panel_ass)
-merged_data <- data.table::data.table(merged_data)
+merged_data <- data_preprocessing("divers" , panel_ass = panel_ass)
 ############################ Data Pre-processing ############################ 
 
 
@@ -83,29 +85,49 @@ xnames_cout <- c(xnames, "group_pays_cout","group_age_cout","group_nationalite_c
 fmla_freq <- as.formula(paste("somme_quantite ~ ",paste(xnames_freq,collapse = '+')))
 fmla_cout <- as.formula(paste("cout_moyen ~ ",paste(xnames_cout,collapse = '+')))
 
-for (name_claim in database[8:24])
+models_list <- list()
+for (name_claim in database[c(c(1:5),c(8:24))])
 {
+  name_claim <- strsplit(name_claim, split = ".", fixed = T)[[1]][1]
+  print(name_claim)
   merged_data <- data_preprocessing(name_claim , panel_ass = panel_ass, verbose = FALSE)
   merged_data <- data.table::data.table(merged_data)
-  merged_data <- group_pays_freq(merged_data, name_claim, print.csv = T)
-  merged_data <- group_pays_cout(merged_data, name_claim, print.csv = T)
+  merged_data <- group_pays_freq(merged_data, name_claim, print.csv = F)
+  merged_data <- group_pays_cout(merged_data, name_claim, print.csv = F)
   merged_data <- group_age_freq(merged_data, name_claim, print.csv = F)
   merged_data <- group_age_cout(merged_data, name_claim, print.csv = F)
-  merged_data <- group_nationalite_freq(merged_data, name_claim, print.csv = T)
-  merged_data <- group_nationalite_cout(merged_data, name_claim, print.csv = T)
+  merged_data <- group_nationalite_freq(merged_data, name_claim, print.csv = F)
+  merged_data <- group_nationalite_cout(merged_data, name_claim, print.csv = F)
+  train_freq <- merged_data[annee < 2012,]
+  test_freq <- merged_data[annee == 2012,]
   
   merged_cout <- merged_data[cout_moyen>0,]
   varchars = names(merged_cout)[which(sapply(merged_cout,is.factor))]
   for (j in varchars) 
   { data.table::set(merged_cout,j=j,value = as.factor(merged_cout[[j]]))}
-  glm_freq <- glm(fmla_freq, offset(merged_data$presence), family = poisson(link = "log"), data = merged_data)
-  glm_cout <- glm(fmla_cout, offset(merged_cout$presence),family = Gamma(link = "log"), data = merged_cout)
+  train_cout <- merged_cout[annee < 2012,]
+  test_cout <- merged_cout[annee == 2012,]
   
-  s_freq <- summary.glm(glm_freq)$coefficients
-  s_cout <- summary.glm(glm_cout)$coefficients
+ 
+  glm_freq <- glm(fmla_freq, offset(train_freq$presence), family = poisson(link = "log"), data = train_freq)
+  glm_cout <- glm(fmla_cout, offset(train_cout$presence),family = Gamma(link = "log"), data = train_cout)
   
-  write.csv(s_freq, file = paste0("./Models/freq/freq_",name_claim))
-  write.csv(s_cout, file = paste0("./Models/cout/cout_",name_claim))
+  pred_freq <- predict.glm(object = glm_freq, newdata = test_freq, type = "response")
+  pred_cout <- predict.glm(object = glm_cout, newdata = test_cout, type = "response")
+  
+  real_freq <- test_freq$somme_quantite
+  real_cout <- test_cout$cout_moyen
+  presence <- test_freq$presence
+  
+  element <- list(pred_freq = pred_freq, pred_cout = pred_cout,
+                  real_freq = real_freq, real_cout = real_cout, presence <- presence)
+  
+  models_list[[name_claim]] <- element
+  # s_freq <- summary.glm(glm_freq)$coefficients
+  # s_cout <- summary.glm(glm_cout)$coefficients
+  # 
+  # write.csv(s_freq, file = paste0("./Models/freq/freq_",name_claim))
+  # write.csv(s_cout, file = paste0("./Models/cout/cout_",name_claim))
   #merged_data <- data.table::data.table(merged_data)
   # temp <- merged_data[,.(nb_sinistre = sum(somme_quantite)), by = pays_expat]
   # names(temp)[2] <- name_claim
@@ -116,47 +138,22 @@ for (name_claim in database[8:24])
   # save_data(name_claim, panel_ass)
 }
 
+name_list <- names(models_list)
+for (i in 1:length(models_list))
+{
+  name <- name_list[i]
+  png(filename = paste0("./plots/gain_freq/",name,"_gain_freq.png"), width = 6, height = 3.25,
+      units = "in",res = 400, pointsize = 2)
+  plotgain(predrisk = models_list[[i]]$pred_freq, truerisk = models_list[[i]]$real_freq, 
+           exposure = models_list[[i]]$presence, significance = 5)
+  dev.off()
+  png(filename = paste0("./plots/gain_cout/",name,"_gain_cout.png"), width = 6, height = 3.25,
+      units = "in",res = 400, pointsize = 2)
+  plotgain(predrisk = models_list[[i]]$pred_cout, truerisk = models_list[[i]]$real_cout, 
+           exposure = NULL, significance = 5)
+  dev.off()
+}
 
-library(rworldmap)
-library(WDI)
-library(RColorBrewer)
-pays_dist <- merge(pays_dist, replace, by = "pays_expat", all.x = T)
-mymap <- joinCountryData2Map( pays_dist, joinCode = "NAME",
-                              suggestForFailedCodes = T,nameJoinColumn = "pays_expat") 
-setwd("/Users/Kanon/Documents/Health_Pricing_GLM")
-png(filename = paste0("Manque_d'observation_pays.png"), width = 6, height = 3.25,
-    units = "in",res = 400, pointsize = 2)
-
-mapCountryData(map, nameColumnToPlot = "sum",mapTitle = "Manque_d'observation", 
-                catMethod = "categorical", numCats = )
-dev.off()
-
-
-
-merge_data(Xautres_protheses, "Xautres_protheses")
-merge_data(Xauxiliaires_medicaux,"Xauxiliaires_medicaux")
-merge_data(Xbilan_de_sante,"Xbilan_de_sante")
-merge_data(Xchambre_particuliere,"Xchambre_particuliere")
-merge_data(Xconsultation,"Xconsultation")
-merge_data(Xcures_thermales,"Xcures_thermales")
-merge_data(Xdivers,"Xdivers")
-merge_data(Xfiv,"Xfiv")
-merge_data(Xhospitalisation_sauf_chambre_particuliere,"Xhospitalisation_sauf_chambre_particuliere")
-merge_data(Ximplants_dentaires,"Ximplants_dentaires")
-merge_data(Xkeratotomie,"Xkeratotomie")
-merge_data(Xlentilles,"Xlentilles")
-merge_data(Xmaternite_sauf_fiv,"Xmaternite_sauf_fiv")
-merge_data(Xmedecine_alternative,"Xmedecine_alternative")
-merge_data(Xmontures,"Xmontures")
-merge_data(Xorthodontie,"Xorthodontie")
-merge_data(Xparadontologie,"Xparadontologie")
-merge_data(Xpetit_risque,"Xpetit_risque")
-merge_data(Xpharmacie,"Xpharmacie")
-merge_data(Xprothese_dentaire,"Xprothese_dentaire")
-merge_data(Xpsychiatrie,"Xpsychiatrie")
-merge_data(Xsoins_dentaires,"Xsoins_dentaires")
-merge_data(Xvaccination,"Xvaccination")
-merge_data(Xverres,"Xverres")
 
 
 

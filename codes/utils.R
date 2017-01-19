@@ -4,7 +4,7 @@
 group_nationalite_freq <- function(merged_data, name, print.csv = TRUE)
 {
   r <- rpart::rpart(somme_quantite ~ nationalite, data = merged_data, cp = 0)
-  cp <- rpart::printcp(r)[10]
+  cp <- r$cptable[10]
   r <- rpart::prune(r, cp = cp)
   replace <- data.frame(nationalite = merged_data$nationalite, group_nationalite_freq =  r$where)
   replace <- unique(replace)
@@ -30,7 +30,7 @@ group_nationalite_cout <- function(merged_data, name, cp = 0.0001, print.csv = T
   level0 <- setdiff(levels(merged_data$nationalite),levels(factor(data_cout$nationalite)))
   left_out <- data.frame(nationalite = level0, group_nationalite_cout = 0)
   r <- rpart::rpart(cout_moyen ~ nationalite, data = data_cout, cp = 0)
-  cp <- rpart::printcp(r)[10]
+  cp <- r$cptable[10]
   r <- rpart::prune(r, cp = cp)
   replace <- data.frame(nationalite = data_cout$nationalite, group_nationalite_cout = r$where)
   replace <- unique(replace)
@@ -54,7 +54,7 @@ group_nationalite_cout <- function(merged_data, name, cp = 0.0001, print.csv = T
 group_pays_freq <- function(merged_data, name, print.csv = TRUE, minsplit = 15)
 {
   r <- rpart::rpart(somme_quantite ~ pays_expat, data = merged_data, cp = 0)
-  cp <- rpart::printcp(r)[10]
+  cp <- r$cptable[10]
   r <- rpart::prune(r, cp = cp)
   replace <- data.frame(pays_expat = merged_data$pays_expat, group_pays_freq =  r$where)
   replace <- unique(replace)
@@ -86,7 +86,7 @@ group_pays_cout <- function(merged_data, name, print.csv = T, verbose = T)
   level0 <- setdiff(levels(merged_data$pays_expat),levels(factor(data_cout$pays_expat)))
   left_out <- data.frame(pays_expat = level0, group_pays_cout = 0)
   r <- rpart::rpart(cout_moyen ~ pays_expat, data = data_cout, cp = 0)
-  cp <- rpart::printcp(r)[10]
+  cp <- r$cptable[10]
   r <- rpart::prune(r, cp = cp)
   replace <- data.frame(pays_expat = data_cout$pays_expat, group_pays_cout = r$where)
   replace <- unique(replace)
@@ -118,7 +118,7 @@ group_age_cout <- function(merged_data, name, print.csv = TRUE)
   level0 <- setdiff(unique(merged_data$age),unique(factor(data_cout$age)))
   left_out <- data.frame(age = level0, group_age_cout = 0)
   r <- rpart::rpart(cout_moyen ~ age, data = data_cout, cp = 0)
-  cp <- rpart::printcp(r)[10]
+  cp <- r$cptable[10]
   r <- rpart::prune(r, cp = cp)
   rpart.plot::rpart.plot(r)
   replace <- data.frame(age = data_cout$age, group_age_cout =  r$where)
@@ -146,7 +146,7 @@ group_age_cout <- function(merged_data, name, print.csv = TRUE)
 group_age_freq <- function(merged_data, name, print.csv = TRUE)
 {
   r <- rpart::rpart(somme_quantite ~ age, data = merged_data, cp = 0)
-  cp <- rpart::printcp(r)[10]
+  cp <- r$cptable[10]
   r <- rpart::prune(r, cp = cp)
   rpart.plot::rpart.plot(r)
   replace <- data.frame(age = merged_data$age, group_age_freq =  r$where)
@@ -311,17 +311,10 @@ data_preprocessing <- function(name_claim_data, verbose = TRUE, panel_ass = pane
                                                  , name_claim_data))
   }
   else(claim_data <- eval(parse(text = name)))
-
-  if (!exists("panel_ass", envir = globalenv()))
-  {
-    if (verbose == T)
-    {print("Reading in panel_ass, please take a coffee... ")}
-    panel_ass <- sas7bdat::read.sas7bdat("/Users/Kanon/Google Drive/AXA/data/MSH/exposure/panel_ass.sas7bdat")
-  }
   
   # Check the format of each data set #
   if (verbose == TRUE)
-  {print(paste0("Check whether ", name_claim_data, " is a data.frame object: "))}
+  {print(paste0("Check whether ", name, " is a data.frame object: "))}
   is.data.frame(claim_data)
   
   # Set the pk (primary key) equals to paste(annee,ident_personne) in preparation for left join #
@@ -331,13 +324,13 @@ data_preprocessing <- function(name_claim_data, verbose = TRUE, panel_ass = pane
   
   # Preparation with dataset claim_data for consistancy #
   if (verbose == TRUE)
-  {print(paste0("Adding a new variable serves as the primary key 'pk' in ", name_claim_data) )}
+  {print(paste0("Adding a new variable serves as the primary key 'pk' in ", name) )}
   claim_data$pk <- as.numeric(paste(claim_data$annee,claim_data$ident_personne,sep=""))
   
   # Check duplication in the loaded claims dataset. If exist, remove all duplications #
   if (verbose == TRUE)
-  {print(paste0("Checking duplication in ", name_claim_data, "..."))}
-  claim_data <- check_dup(claim_data, name_claim_data, verbose = verbose)
+  {print(paste0("Checking duplication in ", name, "..."))}
+  claim_data <- check_dup(claim_data, name, verbose = verbose)
   
   # In preparation for the left outer join, some redundant variables in claim_data #
   # are removed #
@@ -346,14 +339,14 @@ data_preprocessing <- function(name_claim_data, verbose = TRUE, panel_ass = pane
   # the presence in panel_ass. Results turned out to be positive, thus no need in keeping both #
   if (verbose == TRUE)
   {print(paste0("Variables 'ident_personne', 'annee_soin'
-                , 'presence' are removed from ", name_claim_data))}
+                , 'presence' are removed from ", name))}
   claim_data$ident_personne <- NULL
   claim_data$annee_soin <- NULL
   claim_data$presence <- NULL
   
   # Left outer join of panel_ass and claim_data #
   if (verbose == TRUE)
-  {print(paste0("Left outer joining ",name_claim_data, " to panel_ass by key 'pk'..."))}
+  {print(paste0("Left outer joining ",name, " to panel_ass by key 'pk'..."))}
   merged_data <- merge(panel_ass,claim_data, by = "pk", all.x = TRUE)
   
   ## Deal with the NA values in merged_data ##
@@ -371,20 +364,6 @@ data_preprocessing <- function(name_claim_data, verbose = TRUE, panel_ass = pane
   # Delete primary key
   merged_data$pk <- NULL
   
-  # Delete variables that has numerous levels which have few information
-  merged_data$nationalite_2 <- NULL
-  merged_data$pays_expat_2 <- NULL
-  merged_data$pays <- NULL
-  merged_data$pays_2 <- NULL
-  
-  # Uniform variable which doesn't bring in any signal
-  merged_data$nb_adherents <- NULL
-  
-  # Transform all numerical binary variables into factors
-  if (verbose == TRUE)
-  {print("Transfering binary variables into factor objects")}
-  merged_data <- binary_to_factor(merged_data)
-  
   # Check the targets, negative values are listed and eliminated
   if (verbose == TRUE)
   {print("Eliminate observations whose target is negative")}
@@ -392,23 +371,6 @@ data_preprocessing <- function(name_claim_data, verbose = TRUE, panel_ass = pane
   
   # Converting merged_data into data.table object
   merged_data <- data.table::data.table(merged_data)
-  
-  # Furthuer removal of useless or unidentified variables from merged_data
-  merged_data$ident_famille <- NULL
-  merged_data$ident_police <- NULL
-  merged_data$ident_personne <- NULL
-  
-  # Create a feature which indicates whether the date_sortie equals to date_sortie_obs
-  merged_data$sortie_prevu <- merged_data$date_sortie == merged_data$date_sortie_obs
-
-  # Furthuer removal of useless or unidentified variables from merged_data
-  merged_data$date_sortie <- NULL
-  merged_data$date_sortie_obs <-NULL
-  merged_data$pointeur_origine <- NULL
-  merged_data$X <- NULL
-  merged_data$temps_de_presence <- NULL
-  merged_data$IDENT_CONV <- NULL
-  merged_data$categorie <- NULL
   
   # convert somme_frois to cout_moyen
   merged_data$cout_moyen <- 0
@@ -465,6 +427,17 @@ show_data_as_factor <- function(x)
   {return(levels(as.factor(x)))}
   else
   {return(length(levels(as.factor(x))))}
+}
+
+fancy_scientific <- function(l) {
+  # turn in to character string in scientific notation
+  l <- format(l, scientific = TRUE)
+  # quote the part before the exponent to keep all the digits
+  l <- gsub("^(.*)e", "'\\1'e", l)
+  # turn the 'e+' into plotmath format
+  l <- gsub("e", "%*%10^", l)
+  # return this as an expression
+  parse(text=l)
 }
 
 # A function which returns the names of columns that contains NA value and the number of #
@@ -1431,3 +1404,1187 @@ group_levels <- function(dt, group_factor, loose_ends = NULL, frequency, exposur
 }
 
 ############################ Functions and tests ############################ 
+
+
+# INTERNALS #########################################################
+#####################################################################
+
+## area under curve
+trapz <- function(x,y)
+{
+  # x and y must be vectors
+  idx = 2:length(x)
+  return (((x[idx] - x[idx-1]) %*% (y[idx] + y[idx-1])) / 2)
+}
+
+custom_summarise <- function(tbl, v, args, model)
+{
+  c0 = args$type == "summary"
+  if(is.null(v)){c1 = args$global}else{c1 = T}
+  if(is.null(v) || !v %in% model$facpred){c2 = !args$fim}else{c2 = T}
+  
+  summ_args = args$formula[c0 & c1 & c2]
+  
+  if(length(summ_args) == 0)
+    stop("error: no summary statistics provided")
+  
+  summ_args = paste0(summ_args, collapse = ", ")
+  
+  str <- paste0("tbl %>% dplyr::summarise(", summ_args,")")
+  
+  tbl <- eval(parse(text = str))
+  ## transform the table var column to a correctly-ordered factor
+  if(!is.null(v))
+    tbl[[v]] = w_tidyFactor(tbl[[v]], NA_as_level = T)
+  
+  return(tbl)
+}
+
+custom_add <- function(tbl, v, args, add_tbls, DT, model, predictions, envStats)
+{
+  c0 = args$type == "add"
+  if(is.null(v)){c1 = args$global}else{c1 = T}
+  if(is.null(v) || !v %in% model$facpred){c2 = !args$fim}else{c2 = T}
+  
+  add_args = args$formula[c0 & c1 & c2]
+  
+  ## add tables to add_tbls list
+  if(length(add_args) > 0)
+    for(aa in add_args)
+      add_tbls[[length(add_tbls)+1]] = eval(parse(text = aa))
+  
+  if(length(add_tbls) == 0)
+    return(tbl)
+  
+  ## flatten the list of lists of tables to a list of tables
+  flist = flatten_tblist(add_tbls)
+  
+  ## add tables
+  ## global criterion: first col not named levels and nrow = 1
+  if(!is.null(v))
+  {
+    for(i in 1:length(flist))
+      if(v %in% names(flist[[i]]))
+        tbl = merge(x = tbl, y = flist[[i]], by = v, all.x = T)
+  }
+  else
+  {
+    for(i in 1:length(flist))
+      if(nrow(flist[[i]]) == 1)
+        tbl = cbind(tbl, flist[[i]])
+  }
+  
+  return(tbl)
+}
+
+## this mutate function allows to refer to a base level for a given
+## variable, in a dplyr::mutate call
+custom_mutate <- function(tbl, v, args, base_levels, order_by, order, model)
+{
+  c0 = args$type == "mutate"
+  if(is.null(v)){c1 = args$global} else{c1 = T}
+  if(is.null(v) || !v %in% model$facpred){c2 = !args$fim}else{c2 = T}
+  
+  mutate_args = args$formula[c0 & c1 & c2]
+  
+  if(length(mutate_args) == 0)
+    return(tbl)
+  
+  ##replace true base levels
+  if(!is.null(v))
+    mutate_args = gsub(pt_blvlind, base_levels[[v]], mutate_args)
+  
+  mutate_args = paste0(mutate_args, collapse = ", ")
+  
+  tbl = tryCatch({eval(parse(text = paste0("tbl %>% dplyr::mutate(", mutate_args,")")))},
+                 error = function(e){
+                   e = gsub("^.*:", "", e)
+                   stop(paste0("Error in mutate:", e, ". Check validity of argument 'base_levels'."))
+                 })
+  
+  return(tbl)
+}
+
+rename_col1_to_levels <- function(tbl)
+{
+  data.table::setnames(tbl, names(tbl)[1], "levels")
+  return(tbl)
+}
+
+arrange_rows <- function(tbl, v, order_by, order)
+{
+  ## handling order_by and order arguments
+  if(is.null(order_by))
+    ordvar = "levels"
+  else if(!order_by %in% names(tbl))
+    ordvar = "levels"
+  else
+    ordvar = order_by
+  
+  if(order == -1)
+    tbl = tbl[rev(order(tbl[[ordvar]]))]
+  else
+    tbl = tbl[order(tbl[[ordvar]])]
+  
+  return(tbl)
+}
+
+arrange_columns <- function(tbl)
+{
+  data.table::setDT(tbl)
+  
+  currcols = colnames(tbl)
+  ord      = all_stats$ordercols
+  exrem = gsub("\\|.*", "", currcols)
+  final = c(ord[ord %in% exrem], exrem[!exrem %in% ord])
+  vecwithmod = unique(gsub("\\|.*", "", currcols[grep("\\|.*", currcols)]))
+  
+  if(length(vecwithmod) > 0)
+    for(v in vecwithmod)
+    {
+      toputin = ex[grep(paste0(v, "\\|"), ex)]
+      final = replaceInVec(vec = final, what = v, replacement = toputin)
+    }
+  data.table::setcolorder(tbl, final)
+  return(tbl)
+}
+
+
+flatten_tblist <- function(add_tbls)
+{
+  
+  ret = list()
+  if(length(add_tbls) == 0)
+    return(ret)
+  
+  for(i in 1:length(add_tbls))
+  {
+    if(is.list(add_tbls[[i]]) & !is.data.frame(add_tbls[[i]]))
+    {
+      for(elem in add_tbls[[i]])
+      {
+        if(is.data.frame(elem))
+          ret[[length(ret) + 1]] = elem
+        else
+          stop("add_tbls[[", i,"]] contains non-data-frame elements")
+      }
+    }
+    else if(is.data.frame(add_tbls[[i]]))
+      ret[[length(ret) + 1]] = add_tbls[[i]]
+    else
+      stop("objects in add_tbls argument should be tables or list of tables")
+  }
+  
+  return(ret)
+}
+
+get_baselvl_index <- function(tbl, v, base_levels, order_by, order)
+{
+  if(is.null(base_levels[[v]]))
+  {
+    if(is.null(order_by))
+      ordvar = v
+    else if(!order_by %in% names(tbl))
+      ordvar = v
+    else
+      ordvar = order_by
+    
+    if(order == -1)
+      base_level_index = which(order(tbl[[ordvar]]) == length(tbl[[ordvar]]))
+    else
+      base_level_index = which(order(tbl[[ordvar]]) == 1)
+  }
+  else
+    base_level_index = which(tbl[[v]] == base_levels[[v]])
+  
+  return(base_level_index)
+}
+
+
+group_identicals <- function(lt)
+{
+  new_lt = list(lt[[1]])
+  names(new_lt)[1] = "1"
+  colors_ID = 1
+  if(length(lt) > 1)
+  {
+    for(i in (2:length(lt)))
+    {
+      found_identical = F
+      for(k in 1:length(new_lt))
+        if(identical(lt[[i]], new_lt[[k]]))
+        {
+          names(new_lt)[k] = paste0(names(new_lt)[k], "&", i)
+          found_identical = T
+        }
+      if(!found_identical)
+      {
+        new_lt[[length(new_lt)+1]] = lt[[i]]
+        names(new_lt)[length(new_lt)] = i
+        colors_ID = c(colors_ID, i)
+      }
+    }
+  }
+  
+  return(list(perfect_list = new_lt, colors_ID = colors_ID))
+}
+
+##### ERROR MESSAGES
+# taken from link =
+# https://github.com/rstudio/addinexamples/blob/master/R/utils.R
+isErrorMessage <- function(object) {
+  inherits(object, "error_message")
+}
+
+errorMessage <- function(type, message) {
+  structure(
+    list(type = type, message = message),
+    class = "error_message"
+  )
+}
+
+
+muffleWarning <- function(expr, warnings = NULL)
+{
+  h <- function(w){
+    w <- as.character(w)
+    for(wns in warnings)
+      if(grepl(pattern = wns, x = w))
+        invokeRestart("muffleWarning")
+  }
+  withCallingHandlers(eval(expr), warning = h)
+}
+
+
+# is_ ###############################################################
+#####################################################################
+
+## check if variable is in DT
+is_notindt <- function(DT, vars, type_message = NULL,
+                       message_suffix = "", verbose = T)
+{
+  message_function = get_message_function(type_message)
+  
+  if(is.null(vars))
+  {
+    if(verbose)
+      message_function(paste0("variable NULL is not in DT.", message_suffix))
+    return(T)
+  }
+  
+  ret = sapply(vars, function(v){
+    pb = !(v %in% names(DT))
+    if(pb & verbose)
+      message_function(paste0("variable '", v, "' is not in DT.", message_suffix))
+    return(pb)
+  })
+  
+  return(ret)
+}
+
+## check if a variable has unique values or a single value in a dataset
+is_single <- function(DT, vars = NULL, type_message = NULL,
+                      message_suffix = "", verbose = T)
+{
+  message_function = get_message_function(type_message)
+  if(is.null(vars))
+    vars = names(DT)
+  
+  ret = sapply(vars, function(v){
+    pb = length(unique(DT[[v]])) == 1
+    if(pb & verbose)
+      message_function(paste0("single value for variable '", v, "'", message_suffix))
+    return(pb)
+  })
+  
+  return(ret)
+}
+
+## check if a variable has unique values for each row of the dataset
+is_unique <- function(DT, vars = NULL, type_message = NULL,
+                      message_suffix = "", verbose = T,
+                      thresh_unique = 0.99)
+{
+  message_function = get_message_function(type_message)
+  if(is.null(vars))
+    vars = names(DT)
+  
+  ret = sapply(vars, function(v){
+    pb = length(unique(DT[[v]]))/nrow(DT) >= thresh_unique
+    if(pb & verbose)
+      message_function(paste0("> ",thresh_unique,
+                              "% of unique values for variable '", v, "'", message_suffix))
+    return(pb)
+  })
+  
+  return(ret)
+}
+
+
+## util function to get a specific message function
+get_message_function <- function(type_message)
+{
+  if(is.null(type_message))
+    message_function = function(...){}
+  else if(type_message == "error")
+    message_function = base::stop
+  else if(type_message == "warning")
+    message_function = base::warning
+  else if(type_message == "message")
+    message_function = base::message
+  else
+    message_function = function(...){}
+  
+  return(message_function)
+}
+
+# formula parsing #####################################################
+#######################################################################
+
+
+
+
+# regex ###############################################################
+#######################################################################
+
+## pattern to detec valid names in R
+pt_valid = "((\\.[[:alpha:]])|[[:alpha:]])([[:alnum:]]|_|\\.)*"
+pt_valid_quoted = "('|\")((\\.[[:alpha:]])|[[:alpha:]])([[:alnum:]]|_|\\.)*('|\")"
+#valid = c("bb", ".ala", ".ala_za3", ".a3", "bb34", "bb45_yu", "bala.fri")
+#invalid = c(".", "3a", "_olo", ".3z")
+#grep(pt_valid, invn)
+
+pt_blvlind = "\\.blvl_ind"
+#valid = c("[.blvl_ind]", "(.blvl_ind)", " .blvl_ind 2", ".blvl_ind34 + a[.blvl_ind]")
+#invalid = c("ablvl_ind", ".blvl_ind", "blvl_ind_qsd", "blvl_ind3", "blvl_ind.")
+#gsub(pt_blvlind, "@@",valid)
+
+# EXTERNALS ####################################################################
+################################################################################
+
+
+# Factor Manipulation ###############################################
+#####################################################################
+
+#' get boolean vector of NAs in factor
+#'
+#' Works as is.na() but more flexible.
+#'
+#' Useful for detecting NAs after NA has been set as a level using addNA
+#'
+#' @param f factor
+#' @export
+w_isNA <- function(f)
+{
+  is.na(as.character(f))
+}
+
+#' Tidy the levels of a factor
+#'
+#' Does 3 potential operations:
+#' - order the levels of the factor, putting numerics in numerical order
+#' first then characters in alphabetical order
+#' - removes levels that are missing in the factor
+#' - add NA as a level of the factor
+#' Based on w_ordLvlFactor and w_cleanLvlFactor
+#'
+#' @param f factor
+#' @param NA_as_level [boolean] is NA is to be set as a level if the
+#' factor contains NAs
+#' @param ord [boolean] if levels should be ordered as described above
+#' @param clean [boolean] if missing levels should be removed
+#'
+#' @export
+w_tidyFactor <- function(f, NA_as_level = F, ord = T, clean = T)
+{
+  if(ord)
+    f = w_ordLvlFactor(f)
+  if(clean)
+    f = w_cleanLvlFactor(f)
+  if(NA_as_level)
+    f = addNA(f, ifany = T)
+  
+  return(f)
+}
+
+#' Order the levels of a factor
+#'
+#' Order the levels of the factor, putting numerics in numerical order
+#' first then characters in alphabetical order
+#'
+#' @param f factor
+#'
+#' @export
+w_ordLvlFactor <- function(f)
+{
+  if(!is.factor(f))
+    f = factor(f)
+  
+  lvls = levels(f)[!is.na(levels(f))]
+  isnum = suppressWarnings(!is.na(as.numeric(lvls)))
+  num_lvls = lvls[isnum]
+  oth_lvls = lvls[!isnum]
+  nlvls = c(num_lvls[order(as.numeric(num_lvls))],
+            oth_lvls[order(oth_lvls)])
+  
+  ret = factor(f, levels = nlvls)
+  
+  if(NA %in% levels(f))
+    ret = addNA(ret, ifany = T)
+  
+  return(ret)
+}
+
+#' Clean the levels of a factor
+#'
+#' Removes levels that are missing in the factor
+#'
+#' @param f factor
+#'
+#' @export
+w_cleanLvlFactor <- function(f)
+{
+  if(!is.factor(f))
+    stop("argument is not a factor")
+  nlvls = levels(f)
+  
+  ## removing levels that aren't present in the factor
+  for(l in levels(f))
+  {
+    if(!l %in% as.character(f))
+    {
+      message(paste0("removing level '", l,"' : missing in factor"))
+      nlvls = nlvls[!nlvls %in% l]
+    }
+  }
+  ## this trick is needed because factor(f, levels = nlvls) doesn't
+  ## put NA as factor event though it is in nlvls...
+  if(NA %in% nlvls)
+    ret = addNA(factor(f, levels = nlvls))
+  else
+    ret = factor(f, levels = nlvls)
+  
+  return(ret)
+}
+
+
+#' Replace empty or all-white strings by NAs
+#'
+#' For character and factor variables
+#'
+#' @param DT data.frame or data.table
+#' @param byref if true, columns are changed by reference
+#'
+#' @return the modified dataset
+#'
+#' @export
+w_replaceEmptyByNA <- function(DT, byref = T)
+{
+  ## get only the name of variables that are of type factor/character
+  ## and containing blank elements
+  vars = names(DT)[sapply(DT, function(x) class(x) %in% c("factor", "character"))]
+  vars = vars[sapply(vars, function(v) length(grep("^[[:blank:]]*$",unique(DT[[v]])))>0)]
+  if(is.data.table(DT) | byref)
+  {
+    for(v in vars)
+      DT[, (v):=gsub(pattern = "^[[:blank:]]*$", replacement = NA, x = DT[[v]])]
+    return(DT)
+  }
+  else if(is.data.frame(DT))
+  {
+    for(v in vars)
+      DT[[v]] = gsub(pattern = "^[[:blank:]]*$", replacement = NA, x = DT[[v]])
+    return(DT)
+  }
+  else
+    stop("DT is not a data.frame")
+}
+
+#' get all the variables having a given number of NA in the dataset
+#'
+#' @param DT the dataset
+#'
+#' @return a data.table with 3 column: NB_NA (number of NA), NB_VARS
+#' (number of variables having this amount of NA), VARS (name of the
+#' corresponding variables)
+#'
+#' @export
+w_varByNBNA <- function(DT)
+{
+  inf = info(DT)
+  
+  vars_by_nbna = data.table(NB_NA = unique(inf$NB_NA),
+                            VARS = lapply(unique(inf$NB_NA), function(x){
+                              inf$COL[inf$NB_NA == x]
+                            }))
+  
+  vars_by_nbna$NB_VARS = sapply(vars_by_nbna$VARS, length)
+  
+  data.table::setcolorder(vars_by_nbna, c("NB_NA", "NB_VARS", "VARS"))
+  
+  return(vars_by_nbna)
+}
+
+# Data Manipulation and Info ########################################
+#####################################################################
+
+
+
+
+#' Information about a dataset
+#'
+#' @param DT [data.table] dataset
+#' @return if global = F (default):
+#' for each column of the dataset:
+#' - the number of NAs
+#' - the proportion of NAs
+#' - the number of unique values
+#' - the proportion of unique values
+#' - the column type (continuous or discrete)
+#' - the R variable type
+#' else if global = T
+#' - tocomplete
+#'
+#' @export
+info <- function(DT, global = FALSE)
+{
+  if(global)
+    ret = data.table::data.table(
+      NB_QUOTES       = nrow(DT),
+      NB_DUP          = sum(duplicated(DT)),
+      PROP_DUP        = round(1000*sum(duplicated(DT))/nrow(DT))/1000,
+      NB_INCOMPLETE   = sum(!complete.cases(DT)),
+      PROP_INCOMPLETE = round(1000*sum(!complete.cases(DT))/nrow(DT))/1000)
+  else
+  {
+    NB_NA = sapply(DT, function(x) { sum(is.na(x))})
+    PROP_NA = sapply(DT, function(x) {
+      round(1000*sum(is.na(x))/nrow(DT))/1000})
+    NB_UNIQUE = sapply(DT, function(x) {
+      length(unique(na.omit(x))) })
+    PROP_UNIQUE = sapply(DT, function(x) {
+      round(1000*length(unique(na.omit(x)))/nrow(DT))/1000})
+    R_TYPE = sapply(colnames(DT), function(x){class(DT[[x]])})
+    
+    COL = colnames(DT)
+    ret = data.table::data.table(COL, NB_NA, PROP_NA, NB_UNIQUE,
+                                 PROP_UNIQUE, R_TYPE,
+                                 keep.rownames = T)
+  }
+  return(ret)
+}
+
+#' Shorthand for accessing particular rows of an info() table
+#'
+#' @param info info table produced by info()
+#' @param varnames variable names
+#'
+#' @export
+ci <- function(info, varnames)
+{
+  info[info$COL %in% varnames]
+}
+
+
+#' getnum
+#'
+#' Get the name of numeric variables in a dataset
+#'
+#' @param DT the dataset
+#' @export
+getnum <- function(DT)
+{
+  names(which(sapply(names(DT), function(v){ is.numeric(DT[[v]])})))
+}
+
+#' getfac
+#'
+#' Get the name of factor variables in a dataset
+#'
+#' @param DT the dataset
+#' @export
+getfac <- function(DT)
+{
+  names(which(sapply(names(DT), function(v){ is.factor(DT[[v]])})))
+}
+
+#' getother
+#'
+#' Get the name of non-numeric, non-factor variables in a dataset
+#'
+#' @param DT the dataset
+#' @export
+getother <- function(DT)
+{
+  names(which(sapply(names(DT), function(v){
+    !is.numeric(DT[[v]]) & !is.factor(DT[[v]])
+  })))
+}
+
+
+
+#' Correspondency between a column in a dataa.table and a dictionary
+#'
+#' Description
+#'
+#' @param tbl d
+#' @param col d
+#' @param dictionary d
+#' @param by_reference d
+#'
+#' @export
+correspond <- function(tbl, col, dictionary, by_reference = F)
+{
+  #! to improve: remove trailing spaces
+  #! check that not multiple names in dictionary
+  
+  newcol = tbl[[col]]
+  for(nm in names(dictionary))
+    newcol[newcol == nm] = dictionary[[nm]]
+  
+  if(by_reference)
+    if(data.table::is.data.table(tbl))
+      tbl[, (col):= newcol]
+  else
+    stop("tbl is not a data.table, not possible to modify by reference")
+  else
+    tbl[[col]] = newcol
+  
+  return(tbl)
+}
+
+#' transform a table into a list of tables.
+#'
+#' One of the input table column values should be of the form
+#' varname(separator)level
+#'
+#' @param tbl d
+#' @param col d
+#' @param vars d
+#' @param sep d
+#'
+#' @export
+dtlist <- function(tbl, col, vars, sep)
+{
+  tbl_list = list()
+  if(length(sep) != 1 | !is.character(sep))
+    stop("sep should be a character of length 1")
+  if(sep %in% c("|","^","(",")",".","$","[","]"))
+    sep = paste0("\\",sep)
+  
+  for(v in vars)
+  {
+    ind = grep(pattern = paste0("^",v,sep), x = tbl[[col]])
+    lvls = sub(pattern = paste0("^",v, sep),"",tbl[[col]][ind])
+    tbl_list[[v]] = data.table::data.table(tbl[ind])
+    tbl_list[[v]][, (col):=lvls]
+    data.table::setnames(tbl_list[[v]], col, v)
+  }
+  return(tbl_list)
+}
+
+# col: unquoted name of the variable
+# value: string (level to put first)
+putfirst <- function(tbl, col, value)
+{
+  namecol = deparse(substitute(col))
+  if(!value %in% tbl[[namecol]])
+    stop(paste0(value, " not in ", namecol))
+  
+  x = c(value, tbl[[namecol]][tbl[[namecol]] != value])
+  
+  tbl %>% slice(match(x, tbl[[namecol]]))
+}
+
+#' Diagonalize
+#'
+#' Create a diagonal data.table from a vector of value
+#'
+#' @param vec a vector of numerical values
+#'
+#' @return the diagonalized data table (1 line = 1 value)
+#'
+#' @export
+diagonalize <- function(vec)
+{
+  ret = data.table::data.table(diag(vec, nrow = length(vec), ncol = length(vec)))
+  names(ret) = names(vec)
+  return(ret)
+}
+
+
+#' returns string w/o leading or trailing whitespace
+#' @export
+trim <- function(x)
+{
+  gsub("^\\s+|\\s+$", "", x)
+}
+
+#' swaps values in a vector
+#' @export
+swap <- function(vec, val1, val2)
+{
+  if(length(val1) != 1 || length(val2) != 1 || !all(c(val1, val2) %in% vec))
+    stop(paste0("val1 and val2 should be of length 1 and in vec"))
+  indval1 = which(vec == val1)
+  indval2 = which(vec == val2)
+  vec[indval1] = val2
+  vec[indval2] = val1
+  return(vec)
+}
+
+
+#' swap rows of a data frame
+#' @export
+swaprow <- function(dt, ind1, ind2)
+{
+  if(ind1 <= 0 || ind1 > nrow(dt) ||ind2 <= 0 || ind2 > nrow(dt) || !is_integer(ind1) || !is_integer(ind2))
+    stop("illegal values for ind1 / ind2")
+  newind = swap(1:nrow(dt), ind1, ind2)
+  
+  if(!is.data.frame(dt))
+    stop("dt should be a data.frame or data.table")
+  if(ncol(dt) == 1 & class(dt)[1] == "data.frame")
+  {
+    namecol = colnames(dt)
+    dt = data.frame(dt[newind,])
+    colnames(dt) = namecol
+    rownames(dt) = 1:nrow(dt)
+  }
+  else if(class(dt)[1] == "data.frame")
+  {
+    dt = dt[newind,]
+    rownames(dt) = 1:nrow(dt)
+  }
+  else
+    dt = dt[newind]
+  return(dt)
+}
+
+#' check if values in a vector are integers
+#' @export
+is_integer <- function(x)
+{
+  if(is.integer(x))
+    return(rep(T, length(x)))
+  if(!is.numeric(x))
+    stop("x should be numeric")
+  
+  asint = as.integer(x)
+  sapply(1:length(x), function(i) x[i] == asint[i])
+}
+
+## 2 modes
+## l1 and l2 should contain characters
+## if l1 and l2 are list, returns TRUE if all elements of l1 are equal to those of l2
+## if l1 is a list of character and l2 a character vector, returns a logical vector
+## comparing each element of l1 with l2
+charlist_equal <- function(l1, l2)
+{
+  if(is.list(l1) && is.list(l2))
+  {
+    if(length(l1) != length(l2))
+      return(F)
+    if(!(all(sapply(l1, is.character)) && all(sapply(l2, is.character))))
+      stop("l1 and l2 should be lists of character vectors")
+    return(all(sapply(1:length(l1), function(i){
+      (length(l1[[i]]) == length(l2[[i]]) && all(l1[[i]] == l2[[i]]))
+    })))
+  }
+  else if(is.list(l1) && is.character(l2))
+    sapply(l1, function(l){ length(l) == length(l2) && all(l == l2)})
+  else
+    stop("invalid type for l1 / l2")
+  
+}
+
+
+
+## replace a character string of length 1 in a vector by a character string of length >=1
+## ex: replace "bb" in c("a", "bb", "c") --> c("a", "SDF", "KJ34", "c")
+replaceInVec <- function(vec, what, replacement)
+{
+  while(what %in% vec)
+  {
+    i = which(vec == what)[1]
+    if(i == 1)
+      before = character(0)
+    else
+      before = vec[1:(i-1)]
+    
+    if(i == length(vec))
+      after = character(0)
+    else
+      after = vec[(i+1):length(vec)]
+    
+    vec = c(before, replacement, after)
+  }
+  
+  return(vec)
+}
+
+
+
+
+# Tools for api authentification ########################################
+#####################################################################
+
+
+### Function to code/decode in base 64
+# x a string
+# encode Encode if True (default), decode if False
+# return the string encoded or decoded in base64
+w_base64_string = function(x, encode=T)
+{
+  x_safe = x
+  if(!encode)
+  {
+    x_safe = gsub("_","/", x_safe, fixed=T)
+    x_safe = gsub("-","+", x_safe, fixed=T)
+    x_64 = RCurl::base64Decode(x_safe, mode="raw")
+  } else {
+    x_64 = RCurl::base64Encode(x_safe)
+    x_64 = gsub("/","_", x_64, fixed=T)
+    x_64 = gsub("+","-", x_64, fixed=T)
+  }
+  return(x_64)
+}
+
+# convert a list of vector (with names) to a data.table
+w_list2dt <- function(l) {
+  require(data.table)
+  return(rbindlist(lapply(l, function(x) as.data.table(matrix(x, nrow=1,dimnames = list("",names(x))))),fill = T, use.names = T))
+}
+
+#' Lookup into a shape file the location of the coordinate provided in the data file
+#'
+#' @param data datatable of coordinates. The columns must be named lat and lng for latitude and longitude
+#' @param shape shapefile
+#' @return the data merged with the info provided in the shape file for each coordinates.
+#'
+#' @export
+overFunc = function(data, shape){
+  
+  if(!(sum(colnames(data) %in% c('lat','lng')) == 2))
+    stop('You must include your coordinates in a dataframe with column name lat & lng')
+  data.table::setDT(data)
+  # Convert to numeric.
+  for (j in c('lat','lng')) data.table::set(data,j=j,value=as.numeric(data[[j]]))
+  sp::coordinates(data) <- ~lng+lat
+  sp::proj4string(data) <- sp::proj4string(shape)
+  
+  data_coord_tmp = sp::over(x = data, shape)
+  data = cbind(data, data_coord_tmp)
+  return(data.table::setDT(data))
+}
+
+#' Function to compute the distance in meters between 2 points gien by their coordinates
+#'
+#' @param latA,latB,lngA,lngB: vector of coordinates of the point A and B
+#' @return vector of distances
+#'
+#' @export
+GeoDist <- function(latA,latB,lngA,lngB) {
+  
+  if(missing(latA) | missing(latB) | missing(lngA) | missing(lngB)) stop('You need to provide 4 coordinates.')
+  
+  latA = as.numeric(as.character(latA))
+  latB = as.numeric(as.character(latB))
+  lngA = as.numeric(as.character(lngA))
+  lngB = as.numeric(as.character(lngB))
+  # convert to radian
+  latA = pi/180*latA
+  latB = pi/180*latB
+  lngA = pi/180*lngA
+  lngB = pi/180*lngB
+  # Radius of the earth
+  R = 6378000
+  # Distance in meters
+  d = R*acos(sin(latA)*sin(latB)+cos(latB)*cos(latA)*cos((lngA-lngB)))
+  return(d)
+}
+
+#' Function to return the difference in latitude and longitude between a point and its boundary radius
+#'
+#' @param clat, clng : coordinates of the center of the circle
+#' @param radius: in meter of the circle
+#' @return vector of difference of lat and lng
+#'
+#' @export
+circleBounds <- function(clat, clng, radius) {
+  
+  if(missing(clat) | missing(clng) | missing(radius)) stop('You need to provide the coordinates of the center and the radius')
+  clat = as.numeric(as.character(clat))
+  clng = as.numeric(as.character(clng))
+  # convert to radian
+  clat = pi/180*clat
+  clng = pi/180*clng
+  # Radius of the earth
+  R = 6378000
+  # Compute the max latitude and max longitude
+  mlat <- (clat - radius/R) * 180/pi
+  mlng <- (clng - acos(1/(cos(clat)^2)*(cos(radius/R) - sin(clat)^2))) * 180 /pi
+  
+  diffLng = abs(mlng - (clng * 180/pi))
+  diffLat = abs(mlat - (clat * 180/pi))
+  return(c(diffLat,diffLng))
+}
+
+# Others ############################################################
+#####################################################################
+
+#' hc_listpts
+#'
+#' get (x,y) data into the right format to be added to a highcharts line series
+#'
+#' @param x x coordinates
+#' @param y y coordinates
+#'
+#' @export
+hc_listpts <- function(x,y)
+{
+  ret = list()
+  for(i in 1:length(x))
+    ret[[i]] = c(x[i], y[i])
+  return(ret)
+}
+
+#' Export Description
+#'
+#' Export the description of a dataset to an excel file
+#'
+#' @param DT the dataset
+#' @param description string describing the dataset
+#' @param file path to the file. Defaults to "./name_of_dataset_object.xlsx"
+#' @param overwrite overwrite or not the file
+#'
+#' @return sheet 2 is basically the result of axaml::info(DT).
+#' Column "IS_PERSONAL" is added with defualt value "?", to reference personal
+#' or non personal data
+#' @export
+export_description <- function(DT, file = NULL, overwrite = F, DESCRIPTION = T, IS_ANONYMIZED = F, IS_PERSONAL = F)
+{
+  ## Description not used yet
+  
+  if(!is.data.frame(DT))
+    stop("DT should be a data frame")
+  
+  if(is.null(file))
+  {
+    name_DT = deparse(substitute(DT))
+    file = paste0("./", name_DT, ".xlsx")
+    message(paste0("writing description file by default to: ", file))
+  }
+  if(file.exists(file) && !overwrite)
+    stop(paste0("file '", file,"' already exists and overwrite = F"))
+  
+  ## verify that file is in xlsx format
+  ## verify that file has a correct path
+  
+  ## create structure
+  wb <- openxlsx::createWorkbook()
+  openxlsx::addWorksheet(wb, sheetName = "Data Description", gridLines = FALSE)
+  openxlsx::addWorksheet(wb, sheetName = "Variable Breakdown", gridLines = FALSE)
+  
+  ## first sheet
+  openxlsx::writeData(wb = wb, sheet = 1, x = "number of rows: ", startRow = 1, startCol = 1)
+  openxlsx::writeData(wb = wb, sheet = 1, x = nrow(DT), startRow = 1, startCol = 2)
+  
+  openxlsx::writeData(wb = wb, sheet = 1, x = "number of columns: ", startRow = 2, startCol = 1)
+  openxlsx::writeData(wb = wb, sheet = 1, x = ncol(DT), startRow = 2, startCol = 2)
+  
+  openxlsx::writeData(wb = wb, sheet = 1, x = "In-memory size: ", startRow = 3, startCol = 1)
+  openxlsx::writeData(wb = wb, sheet = 1, x = capture.output(pryr::object_size(DT)), startRow = 3, startCol = 2)
+  
+  openxlsx::setColWidths(wb = wb, sheet = 1, widths = 20, cols = 1:2)
+  
+  
+  ## second sheet: variable breakdown
+  inf = axaml::info(DT)
+  if(is.logical(DESCRIPTION) & DESCRIPTION)
+    inf$DESCRIPTION   = "?"
+  if(is.logical(IS_PERSONAL) & IS_PERSONAL)
+    inf$IS_PERSONAL   = "?"
+  if(is.logical(IS_ANONYMIZED) & IS_ANONYMIZED)
+    inf$IS_ANONYMIZED   = "?"
+  
+  openxlsx::writeDataTable(wb = wb, sheet = 2, x = inf)
+  openxlsx::setColWidths(wb = wb, sheet = 2, widths = 20, cols = 1:ncol(inf))
+  
+  ## save workbook
+  openxlsx::saveWorkbook(wb, file, overwrite = overwrite) ## save to working directory
+}
+
+#' ''Sniffs' a dataset to look for variable names that could have a special 'meaning'
+#'
+#' @param type type of variable to look for.
+#' type = "exposure" --> look for variables that are in [0,1] or have "Expo" in their name.
+#' Currently, only type = 'exposure' is implemented.
+#' @param DT dataset
+#' @export
+sniff <- function(type = NULL, DT = NULL, verbose = T)
+{
+  ## sniff types implemented
+  alltypes <- c("exposure", "claimcount", "age")
+  
+  ## argument check
+  if(is.null(type) && is.null(DT))
+  {
+    cat()
+    return(NULL)
+  }
+  if(!is.null(type) && is.null(DT))
+    stop("DT is NULL")
+  if(!type %in% alltypes)
+    stop("invalid type")
+  
+  ## sniff implementations
+  if(type == "exposure")
+  {
+    candidates_bool <- sapply(names(DT), function(col){
+      if(verbose)
+        cat("examining '", col,"' ...\n")
+      is.numeric(DT[[col]]) &&
+        ((max(DT[[col]], na.rm = T) <= 1 && min(DT[[col]], na.rm = T) >= 0) ||
+           grepl("(Expo)|(expo)", col))
+    })
+    return(names(DT)[candidates_bool])
+  }
+  else if(type == "claimcount")
+  {
+    candidates_bool <- sapply(names(DT), function(col){
+      if(verbose)
+        cat("examining '", col,"' ...\n")
+      is.numeric(DT[[col]]) &&
+        min(DT[[col]], na.rm = T) >= 0 &&
+        all(DT[[col]]%%1==0) &&
+        names(sort(table(DT[[col]]),decreasing=TRUE))[1] == "0"
+    })
+    return(names(DT)[candidates_bool])
+  }
+  else if(type == "age")
+  {
+    candidates_bool <- sapply(names(DT), function(col){
+      if(verbose)
+        cat("examining '", col,"' ...\n")
+      is.numeric(DT[[col]]) &&
+        grepl("^Age|^age|^AGE", col)
+    })
+    return(names(DT)[candidates_bool])
+  }
+  else
+    return(NULL)
+}
+
+
+# Data Anonymization ################################################
+#####################################################################
+
+#' Anonymize
+#'
+#' Anonymize a dataset
+#'
+#' @param DT the dataset
+#' @param vars variables to anonymize
+#' @param method method of anonymization. Currently only support hashing with
+#' the crc32 algorithm.
+#'
+#' @export
+anonymize <- function(DT, vars, method = "crc32")
+{
+  if(method == "crc32")
+  {
+    for(v in vars)
+    {
+      unq_hashes <- vapply(unique(DT[[v]]), function(object) digest::digest(object, algo=method),
+                           FUN.VALUE="", USE.NAMES=TRUE)
+      DT[[v]] = unname(unq_hashes[DT[[v]]])
+    }
+  }
+  else
+    stop(paste0("method '", method, "' not implemented."))
+  
+  return(DT)
+}
+
+#' Anonymize Interactively
+#'
+#' Addin interface to anonymize()
+#'
+#'@importFrom miniUI miniPage miniContentPanel gadgetTitleBar
+#'@importFrom shiny textInput uiOutput radioButtons conditionalPanel reactive renderUI checkboxGroupInput dialogViewer runGadget observeEvent
+#'@export
+anonymizeI <- function() {
+  
+  # Get the document context.
+  context <- rstudioapi::getActiveDocumentContext()
+  
+  # Set the default data to use based on the selection.
+  text <- context$selection[[1]]$text
+  defaultData <- text
+  
+  # Generate UI for the gadget.
+  ui <- miniPage(
+    gadgetTitleBar("anonymize"),
+    miniContentPanel(
+      textInput("data", "Data", value = defaultData),
+      uiOutput("pending"),
+      conditionalPanel('output$ok()', uiOutput('varSelect'))
+    )
+  )
+  
+  # Server code for the gadget.
+  server <- function(input, output, session) {
+    
+    reactiveData <- reactive({
+      # Collect inputs.
+      dataString <- input$data
+      
+      # Check to see if there is data called 'data',
+      # and access it if possible.
+      if (!nzchar(dataString))
+        return(errorMessage("data", "No dataset available."))
+      
+      if (!exists(dataString, envir = .GlobalEnv))
+        return(errorMessage("data", paste("No dataset named '", dataString, "' available.")))
+      
+      data <- get(dataString, envir = .GlobalEnv)
+    })
+    
+    ok <- reactive({
+      is.data.frame(reactiveData())
+    })
+    
+    output$varSelect <- renderUI({
+      data <- reactiveData()
+      checkboxGroupInput('showVars', 'Variables to anonymize:',
+                         names(data), selected = NULL)
+    })
+    
+    output$pending <- renderUI({
+      data <- reactiveData()
+      if (isErrorMessage(data))
+        h4(style = "color: #AA7732;", data$message)
+    })
+    
+    # Listen for 'done'.
+    observeEvent(input$done, {
+      
+      # Emit a subset call if a dataset has been specified.
+      if(nzchar(input$data) & length(input$showVars) > 0){
+        
+        varstr = paste0("c('",
+                        paste0(input$showVars, collapse = "','"), "')")
+        code <- paste0("\nanonym_",input$data, " = anonymize(DT = ",
+                       input$data, ", vars = ", varstr, ")")
+        rstudioapi::insertText(text = code)
+      }
+      
+      invisible(stopApp())
+    })
+  }
+  
+  # Use a modal dialog as a viewr.
+  viewer <- dialogViewer("Hello World", width = 1000, height = 800)
+  runGadget(ui, server, viewer = viewer)
+}
